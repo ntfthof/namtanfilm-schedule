@@ -226,12 +226,14 @@ export default function App() {
       title: '', categoryId: 'namtan', date: dateStr, time: '', isTBA: false, location: '', remarkId: 'open', keywords: '', hashtags: '', notes: ''
     });
     setEditingEvent(null);
+    setIsSaving(false); // Force reset saving state on modal open
     setShowEventModal(true);
   };
 
   const openEditModal = (event) => {
     setFormData({ ...event });
     setEditingEvent(event);
+    setIsSaving(false); // Force reset saving state on modal open
     setShowEventModal(true);
   };
 
@@ -268,7 +270,8 @@ export default function App() {
       console.error("Save error:", error);
       showToast('Error saving event', 'error');
     } finally {
-      setIsSaving(false);
+      // Small timeout to ensure the UI has time to process the close before button state flips
+      setTimeout(() => setIsSaving(false), 100);
     }
   };
 
@@ -512,7 +515,7 @@ export default function App() {
               <div className="space-y-4 mb-8">
                 <div className="flex flex-wrap items-center gap-2 mb-4">
                   <span className={`px-3 py-1 rounded-lg text-[13px] font-bold ${cat.bg} ${cat.text}`}>{cat.label.split(' | ')[1]}</span>
-                  {remark.id !== 'none' && <span className={`px-3 py-1 rounded-lg text-[13px] font-bold ${remark.bg} {remark.text}`}>{remark.short} {remark.label.split(' | ')[0]}</span>}
+                  {remark.id !== 'none' && <span className={`px-3 py-1 rounded-lg text-[13px] font-bold ${remark.bg} ${remark.text}`}>{remark.short} {remark.label.split(' | ')[0]}</span>}
                 </div>
                 <div className="flex flex-col gap-3 text-[15px] font-bold text-gray-600">
                   <div className="flex items-center gap-2.5"><CalendarIcon size={18} strokeWidth={2.5} className="text-gray-400" /><span>{eventDate.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span></div>
