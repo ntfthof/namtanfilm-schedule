@@ -203,6 +203,15 @@ export default function App() {
     setRemarkFilters(prev => ({ ...prev, [remarkId]: !prev[remarkId] }));
   };
 
+  // FIXED: Formatting helper to ensure local date is used, not UTC
+  const formatLocalDate = (date) => {
+    if (!date) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const openAddModal = (dateStr = '') => {
     setFormData({
       title: '', categoryId: 'namtan', date: dateStr, time: '', isTBA: false, location: '', remarkId: 'open', keywords: '', hashtags: '', notes: ''
@@ -267,7 +276,8 @@ export default function App() {
 
   const getEventsForDay = (date) => {
     if (!date) return [];
-    const dateStr = date.toISOString().split('T')[0];
+    // FIXED: Use local date formatting here as well
+    const dateStr = formatLocalDate(date);
     return filteredEvents.filter(e => e.date === dateStr);
   };
 
@@ -352,7 +362,7 @@ export default function App() {
                 const dayEvents = getEventsForDay(date);
                 const isToday = date && date.toDateString() === new Date().toDateString();
                 return (
-                  <div key={i} className={`min-h-[140px] md:min-h-[160px] lg:min-h-[200px] p-2 transition-colors flex flex-col ${!date ? 'bg-white' : isToday ? 'bg-[#fffbeb]' : 'bg-white'} ${date && isAdmin ? 'hover:bg-gray-50 cursor-pointer' : ''}`} onClick={() => { if(date && isAdmin) openAddModal(date.toISOString().split('T')[0]) }}>
+                  <div key={i} className={`min-h-[140px] md:min-h-[160px] lg:min-h-[200px] p-2 transition-colors flex flex-col ${!date ? 'bg-white' : isToday ? 'bg-[#fffbeb]' : 'bg-white'} ${date && isAdmin ? 'hover:bg-gray-50 cursor-pointer' : ''}`} onClick={() => { if(date && isAdmin) openAddModal(formatLocalDate(date)) }}>
                     {date && (
                       <div className="flex flex-col h-full">
                         <div className="mb-2 flex justify-start"><span className={`text-[12px] sm:text-[13px] font-bold flex items-center justify-center px-2 py-0.5 rounded-lg min-w-[28px] ${isToday ? 'bg-[#60a5fa] text-white shadow-sm' : 'text-gray-400'}`}>{date.getDate()}</span></div>
