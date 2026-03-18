@@ -11,11 +11,7 @@ import {
   X, 
   ChevronLeft, 
   ChevronRight,
-  Info,
-  Database,
-  CheckCircle2,
-  AlertCircle,
-  Loader2
+  Info
 } from 'lucide-react';
 
 // Firebase Imports
@@ -127,9 +123,6 @@ export default function App() {
   const [showLogin, setShowLogin] = useState(false);
   const [loginPassword, setLoginPassword] = useState('');
   const [loading, setLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [dbError, setDbError] = useState(null);
-  const [notification, setNotification] = useState(null);
   
   const [filters, setFilters] = useState(
     Object.keys(CATEGORIES).reduce((acc, key) => ({...acc, [key]: true}), {})
@@ -147,11 +140,6 @@ export default function App() {
     title: '', categoryId: 'namtan', date: '', time: '', isTBA: false, location: '', remarkId: 'open', keywords: '', hashtags: '', notes: ''
   });
 
-  const showToast = (message, type = 'success') => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 3000);
-  };
-
   useEffect(() => {
     const initAuth = async () => {
       try {
@@ -162,14 +150,10 @@ export default function App() {
         }
       } catch (error) {
         console.error("Auth error:", error);
-        setDbError("Authentication failed. Make sure Anonymous Sign-in is enabled in Firebase Console.");
       }
     };
     initAuth();
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      if (u) setDbError(null);
-    });
+    const unsubscribe = onAuthStateChanged(auth, (u) => setUser(u));
     return () => unsubscribe();
   }, []);
 
@@ -188,7 +172,6 @@ export default function App() {
       setLoading(false);
     }, (error) => {
       console.error("Firestore error:", error);
-      setDbError("Database error. Check your Firestore rules.");
       setLoading(false);
     });
 
@@ -207,9 +190,8 @@ export default function App() {
       setIsAdmin(true);
       setShowLogin(false);
       setLoginPassword('');
-      showToast('Admin mode activated!', 'success');
     } else {
-      showToast('Incorrect password', 'error');
+      alert('Incorrect password');
     }
   };
 
@@ -226,14 +208,12 @@ export default function App() {
       title: '', categoryId: 'namtan', date: dateStr, time: '', isTBA: false, location: '', remarkId: 'open', keywords: '', hashtags: '', notes: ''
     });
     setEditingEvent(null);
-    setIsSaving(false); // Force reset saving state on modal open
     setShowEventModal(true);
   };
 
   const openEditModal = (event) => {
     setFormData({ ...event });
     setEditingEvent(event);
-    setIsSaving(false); // Force reset saving state on modal open
     setShowEventModal(true);
   };
 
@@ -243,35 +223,30 @@ export default function App() {
       const eventDoc = doc(db, 'artifacts', appId, 'public', 'data', 'events', id);
       await deleteDoc(eventDoc);
       setViewingEvent(null);
-      showToast('Event deleted successfully');
     } catch (error) {
       console.error("Delete error:", error);
-      showToast('Failed to delete event', 'error');
     }
   };
 
   const handleSaveEvent = async (e) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user) {
+      alert("Still connecting to database... please wait 2 seconds.");
+      return;
+    }
 
-    setIsSaving(true);
     try {
       const eventsCollection = collection(db, 'artifacts', appId, 'public', 'data', 'events');
       if (editingEvent) {
         const eventDoc = doc(db, 'artifacts', appId, 'public', 'data', 'events', editingEvent.id);
         await updateDoc(eventDoc, formData);
-        showToast('Event updated successfully');
       } else {
         await addDoc(eventsCollection, formData);
-        showToast('New event scheduled!');
       }
       setShowEventModal(false);
     } catch (error) {
       console.error("Save error:", error);
-      showToast('Error saving event', 'error');
-    } finally {
-      // Small timeout to ensure the UI has time to process the close before button state flips
-      setTimeout(() => setIsSaving(false), 100);
+      alert("Error saving event. Please check your internet connection.");
     }
   };
 
@@ -297,20 +272,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8f9fc] text-[#111827] font-sans pb-24 selection:bg-blue-100 selection:text-blue-900 relative">
-      
-      {/* Toast Notification System */}
-      {notification && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-4 duration-300">
-          <div className={`flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border ${
-            notification.type === 'error' ? 'bg-red-50 border-red-100 text-red-600' : 'bg-white border-gray-100 text-gray-800'
-          }`}>
-            {notification.type === 'error' ? <AlertCircle size={20} /> : <CheckCircle2 className="text-green-500" size={20} />}
-            <span className="font-black text-sm uppercase tracking-wide">{notification.message}</span>
-          </div>
-        </div>
-      )}
-
+    <div className="min-h-screen bg-[#f8f9fc] text-[#111827] font-sans pb-24 selection:bg-blue-100 selection:text-blue-900">
       <div className="w-full max-w-[1920px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 pt-10 pb-16 space-y-8">
         
         <header className="flex justify-between items-center mb-10">
@@ -323,15 +285,7 @@ export default function App() {
             </h1>
           </div>
           <div className="flex items-center gap-3">
-            {loading && !dbError && <div className="text-xs font-bold text-gray-400 animate-pulse">SYNCING...</div>}
-            {dbError && (
-              <div className="group relative">
-                <AlertCircle className="text-red-500 cursor-help" size={24} />
-                <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-red-100 p-3 rounded-xl shadow-xl text-[11px] font-bold text-red-600 hidden group-hover:block z-50">
-                  {dbError}
-                </div>
-              </div>
-            )}
+            {loading && <div className="text-xs font-bold text-gray-400 animate-pulse">SYNCING...</div>}
             {isAdmin ? (
               <button onClick={() => setIsAdmin(false)} className="w-14 h-14 bg-white border border-gray-200 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50 transition-colors shadow-sm">
                 <Unlock size={22} />
@@ -343,23 +297,6 @@ export default function App() {
             )}
           </div>
         </header>
-
-        {isAdmin && (
-          <div className="bg-blue-50 border border-blue-100 rounded-3xl p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-xl ${user ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'}`}>
-                <Database size={20} />
-              </div>
-              <div>
-                <p className="text-xs font-black uppercase text-blue-900">Database Connection</p>
-                <p className="text-sm font-bold text-blue-700">
-                  {user ? 'Connected & Ready to Save' : 'Waiting for connection...'}
-                </p>
-              </div>
-            </div>
-            {user && <CheckCircle2 className="text-green-500" size={24} />}
-          </div>
-        )}
 
         <div className="bg-white rounded-[2.5rem] border border-gray-100 p-8 md:p-10 shadow-[0_2px_20px_rgb(0,0,0,0.02)]">
           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-[0.15em] mb-6">Schedule Legend</h3>
@@ -403,7 +340,7 @@ export default function App() {
           </div>
           {isAdmin && (
             <div className="flex justify-end mb-4 px-2">
-              <button onClick={() => openAddModal()} className="flex items-center gap-2 bg-[#111827] text-white px-5 py-2.5 rounded-xl hover:bg-gray-800 transition-colors font-bold text-sm shadow-md hover:shadow-lg"><Plus size={18} strokeWidth={2.5} /> Add Event</button>
+              <button onClick={() => openAddModal()} className="flex items-center gap-2 bg-[#111827] text-white px-5 py-2.5 rounded-xl hover:bg-gray-800 transition-colors font-bold text-sm"><Plus size={18} strokeWidth={2.5} /> Add Event</button>
             </div>
           )}
           <div className="border border-gray-100 rounded-2xl overflow-hidden mt-4">
@@ -526,7 +463,7 @@ export default function App() {
               {isAdmin && (
                 <div className="flex gap-3 pt-6 border-t border-gray-100">
                   <button onClick={() => { setViewingEvent(null); openEditModal(viewingEvent); }} className="flex-1 bg-blue-50 text-blue-600 font-bold py-3.5 rounded-2xl hover:bg-blue-100 transition-colors flex items-center justify-center gap-2"><Edit size={18} strokeWidth={2.5} /> Edit</button>
-                  <button onClick={() => { if(confirm('Delete event?')) handleDelete(viewingEvent.id); }} className="flex-1 bg-red-50 text-red-500 font-bold py-3.5 rounded-2xl hover:bg-red-100 transition-colors flex items-center justify-center gap-2"><Trash2 size={18} strokeWidth={2.5} /> Delete</button>
+                  <button onClick={() => handleDelete(viewingEvent.id)} className="flex-1 bg-red-50 text-red-500 font-bold py-3.5 rounded-2xl hover:bg-red-100 transition-colors flex items-center justify-center gap-2"><Trash2 size={18} strokeWidth={2.5} /> Delete</button>
                 </div>
               )}
             </div>
@@ -569,21 +506,7 @@ export default function App() {
                 </div>
               </form>
             </div>
-            <div className="px-8 py-5 border-t border-gray-100 bg-white rounded-b-3xl flex justify-end gap-3 sticky bottom-0 z-10">
-              <button type="button" onClick={() => setShowEventModal(false)} className="px-6 py-3 text-gray-500 hover:bg-gray-100 font-bold rounded-2xl transition-colors">Cancel</button>
-              <button 
-                type="submit" 
-                form="event-form" 
-                disabled={!user || isSaving}
-                className={`px-8 py-3 font-bold rounded-2xl shadow-sm transition-all flex items-center gap-2 ${
-                  user && !isSaving ? 'bg-[#111827] text-white hover:bg-gray-800 cursor-pointer' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                }`}
-              >
-                {isSaving ? <Loader2 className="animate-spin" size={18} /> : null}
-                {editingEvent ? 'Update Event' : 'Save Event'}
-                {!user && <span className="ml-2 animate-pulse">(Connecting...)</span>}
-              </button>
-            </div>
+            <div className="px-8 py-5 border-t border-gray-100 bg-white rounded-b-3xl flex justify-end gap-3 sticky bottom-0 z-10"><button type="button" onClick={() => setShowEventModal(false)} className="px-6 py-3 text-gray-500 hover:bg-gray-100 font-bold rounded-2xl transition-colors">Cancel</button><button type="submit" form="event-form" className="px-8 py-3 bg-[#111827] text-white font-bold rounded-2xl hover:bg-gray-800 shadow-sm transition-colors">{editingEvent ? 'Update Event' : 'Save Event'}</button></div>
           </div>
         </div>
       )}
