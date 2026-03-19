@@ -463,7 +463,7 @@ export default function App() {
 
                             {/* CONTENT COLUMN */}
                             <div className="flex-1 min-w-0">
-                              <div className={`flex flex-col md:flex-row items-start justify-between gap-2`}>
+                              <div className={`flex flex-col md:flex-row items-start justify-between gap-2 md:gap-6`}>
                                 
                                 <div className="min-w-0 flex-1 w-full">
                                   {/* Title */}
@@ -486,8 +486,8 @@ export default function App() {
                                   </div>
                                 </div>
                                 
-                                {/* TAGS: Adjusted mobile spacing for subsequent events */}
-                                <div className={`flex flex-row flex-wrap items-center gap-1.5 flex-shrink-0 w-full md:w-auto mt-3 md:mt-0 ${idx === 0 ? 'hidden md:flex md:flex-col md:items-end' : 'flex justify-start md:justify-end md:flex-row md:items-center'}`}>
+                                {/* TAGS: Desktop consistent right-aligned stack, mobile handles first/subsequent differently */}
+                                <div className={`flex-shrink-0 w-full md:w-auto mt-3 md:mt-0 gap-1.5 ${idx === 0 ? 'hidden md:flex md:flex-col md:items-end' : 'flex flex-row flex-wrap justify-start md:flex-col md:items-end'}`}>
                                   <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] md:text-[11px] font-bold border ${cat.bg} ${cat.text} ${cat.border} transition-colors whitespace-nowrap`}>
                                     <span className={`w-1.5 h-1.5 rounded-full ${cat.dot}`}></span>
                                     {cat.label}
