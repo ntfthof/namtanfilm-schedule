@@ -10,13 +10,13 @@ import {
   Unlock, 
   X, 
   ChevronLeft, 
-  ChevronRight,
-  ChevronDown,
-  ChevronUp,
-  Info,
-  Filter,
-  Hash,
-  Tag
+  ChevronRight, 
+  ChevronDown, 
+  ChevronUp, 
+  Info, 
+  Filter, 
+  Hash, 
+  Tag 
 } from 'lucide-react';
 
 // Firebase Imports
@@ -238,7 +238,6 @@ export default function App() {
 
     return events
       .filter(event => {
-        // Robust month filtering using string parts to avoid timezone shifts
         const [year, month] = event.date.split('-').map(Number);
         const matchesMonth = year === currentYear && (month - 1) === currentMonthIndex;
         return filters[event.categoryId] && remarkFilters[event.remarkId] && matchesMonth;
@@ -389,7 +388,6 @@ export default function App() {
           </div>
         </header>
 
-        {/* The rest of the app component remains exactly the same */}
         {isLegendOpen && (
           <div className="bg-white rounded-[2.5rem] border border-gray-100 p-8 md:p-10 shadow-[0_4px_30px_rgb(0,0,0,0.04)] animate-in fade-in slide-in-from-top-4 duration-300">
             <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-6">Schedule Filter System (CLICK TO FILTER)</h3>
@@ -534,10 +532,13 @@ export default function App() {
                                   
                                   {/* Metadata Row */}
                                   <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1.5 text-[14px] md:text-[15px] font-bold text-gray-500 mt-2 md:mt-2.5 bg-transparent border-none p-0 rounded-none">
-                                    <div className="flex items-center gap-2 flex-shrink-0 font-black">
-                                      <Clock size={17} strokeWidth={2.5} className="text-gray-400" />
-                                      {event.isTBA ? <span className="text-orange-500">TBA</span> : event.time}
-                                    </div>
+                                    {(event.time || event.isTBA) && (
+                                      <div className="flex items-center gap-2 flex-shrink-0 font-black">
+                                        {/* Show Clock icon for both TBA and specific time */}
+                                        <Clock size={17} strokeWidth={2.5} className="text-gray-400" />
+                                        {event.isTBA ? <span className="text-orange-500">TBA</span> : event.time}
+                                      </div>
+                                    )}
                                     {event.location && (
                                       <div className="flex items-start gap-2 min-w-0 flex-1 font-black">
                                         <MapPin size={17} strokeWidth={2.5} className="text-gray-400 mt-0.5 flex-shrink-0" />
@@ -633,11 +634,19 @@ export default function App() {
                 <div className="space-y-6 pt-4">
                   <div className="grid grid-cols-1 gap-4 text-[15px] text-gray-600 bg-gray-50/50 p-5 rounded-2xl border border-gray-100 overflow-hidden">
                     <div className="flex items-center gap-3"><CalendarIcon size={18} strokeWidth={2.5} className="text-gray-400 flex-shrink-0" /><span>{eventDate.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span></div>
-                    <div className="flex items-center gap-3"><Clock size={18} strokeWidth={2.5} className="text-gray-400 flex-shrink-0" />{viewingEvent.isTBA ? <span className="text-orange-500">TIME TBA</span> : viewingEvent.time}</div>
-                    <div className="flex items-start gap-3">
-                      <MapPin size={18} strokeWidth={2.5} className="text-gray-400 mt-0.5 flex-shrink-0" />
-                      <span className="leading-snug break-words flex-1 min-w-0 whitespace-normal">{viewingEvent.location || ''}</span>
-                    </div>
+                    {/* Consistent icon behavior in modal: Show Clock if TBA or Time exists */}
+                    {(viewingEvent.time || viewingEvent.isTBA) && (
+                      <div className="flex items-center gap-3">
+                        <Clock size={18} strokeWidth={2.5} className="text-gray-400 flex-shrink-0" />
+                        {viewingEvent.isTBA ? <span className="text-orange-500">TIME TBA</span> : viewingEvent.time}
+                      </div>
+                    )}
+                    {viewingEvent.location && (
+                      <div className="flex items-start gap-3">
+                        <MapPin size={18} strokeWidth={2.5} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                        <span className="leading-snug break-words flex-1 min-w-0 whitespace-normal">{viewingEvent.location}</span>
+                      </div>
+                    )}
                   </div>
                   <div className="flex flex-row flex-wrap items-center gap-2 mb-2">
                     <span className={`px-3 py-1.5 rounded-xl text-[12px] font-bold border ${cat.bg} ${cat.text} ${cat.border} whitespace-nowrap`}>{cat.label}</span>
