@@ -423,7 +423,7 @@ export default function App() {
           <div className="border border-gray-100 rounded-2xl overflow-hidden mt-4">
             <div className="grid grid-cols-7 bg-gray-100 gap-[1px]">
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                <div key={day} className="py-4 bg-white text-center text-[11px] sm:text-[12px] font-bold text-gray-300 uppercase tracking-widest">{day}</div>
+                <div key={day} className="py-4 bg-white text-center text-[11px] sm:text-[12px] font-bold text-gray-500 uppercase tracking-widest">{day}</div>
               ))}
               {calendarDays.map((date, i) => {
                 const dayEvents = getEventsForDay(date);
