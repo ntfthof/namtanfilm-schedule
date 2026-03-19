@@ -360,9 +360,21 @@ export default function App() {
             <div className="w-14 h-14 bg-[#dbeafe] text-[#3b82f6] rounded-2xl flex items-center justify-center shadow-sm">
               <CalendarIcon size={28} strokeWidth={2.5} />
             </div>
-            <h1 className="text-[22px] md:text-[28px] text-gray-900">
-              NamtanFilm & LUNAR Schedule
-            </h1>
+            <div className="flex flex-col">
+              <h1 className="text-[22px] md:text-[28px] text-gray-900 leading-tight">
+                NamtanFilm & LUNAR Schedule
+              </h1>
+              <div className="text-[12px] md:text-[14px] text-gray-400 font-bold tracking-[0.05em] mt-0.5">
+                By: <a 
+                  href="https://linktr.ee/NamtanFilmFC" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="hover:text-blue-400 transition-colors inline-block"
+                >
+                  NAMTANFILM TH OFFICIAL
+                </a>
+              </div>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             {loading && <div className="text-xs font-bold text-gray-400 animate-pulse tracking-widest">Syncing...</div>}
@@ -377,6 +389,7 @@ export default function App() {
           </div>
         </header>
 
+        {/* The rest of the app component remains exactly the same */}
         {isLegendOpen && (
           <div className="bg-white rounded-[2.5rem] border border-gray-100 p-8 md:p-10 shadow-[0_4px_30px_rgb(0,0,0,0.04)] animate-in fade-in slide-in-from-top-4 duration-300">
             <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-6">Schedule Filter System (CLICK TO FILTER)</h3>
