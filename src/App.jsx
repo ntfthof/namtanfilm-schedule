@@ -329,7 +329,7 @@ export default function App() {
             <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-6">Schedule Filter System</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10">
               <div>
-                <h4 className="text-[11px] font-black text-gray-300 uppercase tracking-[0.1em] mb-4">Artists</h4>
+                <h4 className="text-[11px] font-black text-gray-300 uppercase tracking-[0.1em] mb-4">Artists (Click to filter)</h4>
                 <div className="space-y-3">
                   {Object.values(CATEGORIES).map(cat => (
                     <label key={cat.id} className="flex items-center cursor-pointer group">
@@ -343,7 +343,7 @@ export default function App() {
                 </div>
               </div>
               <div>
-                <h4 className="text-[11px] font-black text-gray-300 uppercase tracking-[0.1em] mb-4">Event Remarks</h4>
+                <h4 className="text-[11px] font-black text-gray-300 uppercase tracking-[0.1em] mb-4">Event Remarks (Click to filter)</h4>
                 <div className="space-y-3">
                   {Object.values(REMARKS).map(remark => (
                     <label key={remark.id} className="flex items-center cursor-pointer group">
@@ -422,17 +422,34 @@ export default function App() {
                 const eventDate = new Date(event.date);
                 return (
                   <div key={event.id} className="bg-white rounded-[2rem] border border-gray-100 p-5 md:p-8 shadow-[0_2px_20px_rgb(0,0,0,0.02)]">
-                    <div className="flex flex-col md:flex-row gap-5 md:items-start">
+                    <div className="flex flex-col md:flex-row gap-5 md:items-center">
                       
-                      {/* Date Block */}
-                      <div className={`w-[74px] h-[74px] md:w-[84px] md:h-[84px] rounded-3xl border-2 ${cat.dateBorder} flex flex-col items-center justify-center bg-white shadow-sm flex-shrink-0`}>
-                        <span className={`text-[11px] md:text-[13px] font-extrabold uppercase tracking-wide ${cat.dateMonthText}`}>{eventDate.toLocaleString('default', { month: 'short' })}</span>
-                        <span className="text-[28px] md:text-[32px] font-black text-[#111827] leading-none mt-0.5">{eventDate.getDate()}</span>
+                      {/* Responsive Layout Header: Date + Badges Beside it on Mobile */}
+                      <div className="flex items-center justify-between md:justify-center w-full md:w-auto flex-shrink-0">
+                        {/* Date Block */}
+                        <div className={`w-[74px] h-[74px] md:w-[84px] md:h-[84px] rounded-3xl border-2 ${cat.dateBorder} flex flex-col items-center justify-center bg-white shadow-sm flex-shrink-0`}>
+                          <span className={`text-[11px] md:text-[13px] font-extrabold uppercase tracking-wide ${cat.dateMonthText}`}>{eventDate.toLocaleString('default', { month: 'short' })}</span>
+                          <span className="text-[28px] md:text-[32px] font-black text-[#111827] leading-none mt-0.5">{eventDate.getDate()}</span>
+                        </div>
+                        
+                        {/* Mobile-Only Badges Section (Stacked to the right of the date) */}
+                        <div className="md:hidden flex flex-col items-end gap-2 ml-4">
+                          {/* Artist Badge */}
+                          <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-black shadow-sm border ${cat.bg} ${cat.text} ${cat.dateBorder}`}>
+                            <span className={`w-2 h-2 rounded-full ${cat.dot}`}></span>
+                            {cat.label}
+                          </div>
+                          {/* Remark Badge */}
+                          <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-black shadow-sm border ${remark.bg} ${remark.text} ${remark.border}`}>
+                            <span>{remark.short}</span>
+                            {remark.label}
+                          </div>
+                        </div>
                       </div>
 
                       {/* Content Section */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                           <div className="min-w-0">
                             <h3 className="text-[19px] md:text-[22px] font-black text-[#111827] leading-tight break-words">{event.title}</h3>
                             <div className="flex flex-wrap items-center gap-5 text-[14px] md:text-[15px] font-bold text-gray-500 mt-2">
@@ -441,8 +458,8 @@ export default function App() {
                             </div>
                           </div>
                           
-                          {/* Badges Stacked on Right */}
-                          <div className="flex flex-col items-end gap-2 flex-shrink-0 sm:mt-1">
+                          {/* Desktop-Only Badges Stacked on Far Right */}
+                          <div className="hidden md:flex flex-col items-end gap-2 flex-shrink-0 sm:mt-1">
                             {/* Artist Badge */}
                             <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-black shadow-sm border ${cat.bg} ${cat.text} ${cat.dateBorder}`}>
                               <span className={`w-2 h-2 rounded-full ${cat.dot}`}></span>
