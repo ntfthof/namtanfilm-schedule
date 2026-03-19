@@ -616,8 +616,8 @@ export default function App() {
                 </div>
                 {isAdmin && (
                   <div className="flex gap-3 pt-6 border-t border-gray-100 mt-6 sticky bottom-0 bg-white">
-                    <button onClick={() => { setViewingEvent(null); openEditModal(viewingEvent!); }} className="flex-1 bg-blue-50 text-blue-600 font-bold py-3.5 rounded-2xl hover:bg-blue-100 transition-colors flex items-center justify-center gap-2 shadow-sm font-black"><Edit size={18} strokeWidth={2.5} /> Edit</button>
-                    <button onClick={() => handleDelete(viewingEvent!.id)} className="flex-1 bg-red-50 text-red-500 font-black py-3.5 rounded-2xl hover:bg-red-100 transition-colors flex items-center justify-center gap-2 shadow-sm font-black"><Trash2 size={18} strokeWidth={2.5} /> Delete</button>
+                    <button onClick={() => { setViewingEvent(null); openEditModal(viewingEvent); }} className="flex-1 bg-blue-50 text-blue-600 font-bold py-3.5 rounded-2xl hover:bg-blue-100 transition-colors flex items-center justify-center gap-2 shadow-sm font-black"><Edit size={18} strokeWidth={2.5} /> Edit</button>
+                    <button onClick={() => handleDelete(viewingEvent.id)} className="flex-1 bg-red-50 text-red-500 font-black py-3.5 rounded-2xl hover:bg-red-100 transition-colors flex items-center justify-center gap-2 shadow-sm font-black"><Trash2 size={18} strokeWidth={2.5} /> Delete</button>
                   </div>
                 )}
               </div>
