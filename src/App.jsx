@@ -233,14 +233,21 @@ export default function App() {
   };
 
   const filteredEvents = useMemo(() => {
+    const currentYear = currentMonth.getFullYear();
+    const currentMonthIndex = currentMonth.getMonth();
+
     return events
-      .filter(event => filters[event.categoryId] && remarkFilters[event.remarkId])
+      .filter(event => {
+        const eventDate = new Date(event.date);
+        const matchesMonth = eventDate.getFullYear() === currentYear && eventDate.getMonth() === currentMonthIndex;
+        return filters[event.categoryId] && remarkFilters[event.remarkId] && matchesMonth;
+      })
       .sort((a, b) => {
         const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
         if (dateDiff !== 0) return dateDiff;
         return sortEventsByTime(a, b);
       });
-  }, [events, filters, remarkFilters]);
+  }, [events, filters, remarkFilters, currentMonth]);
 
   const groupedEvents = useMemo(() => {
     const groups = {};
@@ -457,7 +464,7 @@ export default function App() {
           </div>
           {groupedEvents.length === 0 ? (
             <div className="bg-white rounded-[2.5rem] border border-gray-100 p-16 text-center text-gray-400 shadow-[0_2px_20px_rgb(0,0,0,0.02)]">
-              <CalendarIcon size={48} className="mx-auto mb-4 opacity-20" /><p className="text-lg font-bold">No events scheduled.</p>
+              <CalendarIcon size={48} className="mx-auto mb-4 opacity-20" /><p className="text-lg font-bold">No events scheduled for this month.</p>
             </div>
           ) : (
             <div className="space-y-6">
