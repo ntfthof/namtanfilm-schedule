@@ -11,7 +11,12 @@ import {
   X, 
   ChevronLeft, 
   ChevronRight,
-  Info
+  ChevronDown,
+  ChevronUp,
+  Info,
+  Filter,
+  Hash,
+  Tag
 } from 'lucide-react';
 
 // Firebase Imports
@@ -97,22 +102,25 @@ const REMARKS = {
     id: 'open', 
     label: 'แทนงานเปิด | Open Event', 
     short: '(O)', 
-    bg: 'bg-[#f1f5f9]', 
-    text: 'text-gray-700' 
+    bg: 'bg-emerald-50', 
+    text: 'text-emerald-700',
+    border: 'border-emerald-200'
   },
   closed: { 
     id: 'closed', 
-    label: 'แทนงานปิด | Closed / Invite-Only', 
+    label: 'แทนงานปิด | Closed Event', 
     short: '(C)', 
-    bg: 'bg-[#f1f5f9]', 
-    text: 'text-gray-700' 
+    bg: 'bg-rose-50', 
+    text: 'text-rose-700',
+    border: 'border-rose-200'
   },
   gathering: { 
     id: 'gathering', 
-    label: 'แทนการรวมพล | Post-Event Gathering', 
+    label: 'แทนการรวมพล | Gathering', 
     short: '(G)', 
-    bg: 'bg-[#f1f5f9]', 
-    text: 'text-gray-700' 
+    bg: 'bg-indigo-50', 
+    text: 'text-indigo-700',
+    border: 'border-indigo-200'
   }
 };
 
@@ -123,6 +131,7 @@ export default function App() {
   const [showLogin, setShowLogin] = useState(false);
   const [loginPassword, setLoginPassword] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isLegendOpen, setIsLegendOpen] = useState(false); 
   
   const [filters, setFilters] = useState(
     Object.keys(CATEGORIES).reduce((acc, key) => ({...acc, [key]: true}), {})
@@ -203,7 +212,6 @@ export default function App() {
     setRemarkFilters(prev => ({ ...prev, [remarkId]: !prev[remarkId] }));
   };
 
-  // FIXED: Formatting helper to ensure local date is used, not UTC
   const formatLocalDate = (date) => {
     if (!date) return '';
     const year = date.getFullYear();
@@ -276,7 +284,6 @@ export default function App() {
 
   const getEventsForDay = (date) => {
     if (!date) return [];
-    // FIXED: Use local date formatting here as well
     const dateStr = formatLocalDate(date);
     return filteredEvents.filter(e => e.date === dateStr);
   };
@@ -285,17 +292,25 @@ export default function App() {
     <div className="min-h-screen bg-[#f8f9fc] text-[#111827] font-sans pb-24 selection:bg-blue-100 selection:text-blue-900">
       <div className="w-full max-w-[1920px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 pt-10 pb-16 space-y-8">
         
-        <header className="flex justify-between items-center mb-10">
+        <header className="flex flex-col sm:flex-row justify-between items-center mb-10 gap-6">
           <div className="flex items-center gap-5">
             <div className="w-14 h-14 bg-[#dbeafe] text-[#3b82f6] rounded-2xl flex items-center justify-center shadow-sm">
               <CalendarIcon size={28} strokeWidth={2.5} />
             </div>
-            <h1 className="text-[22px] md:text-[28px] font-black tracking-tight uppercase">
+            <h1 className="text-[22px] md:text-[28px] font-black tracking-tight uppercase text-gray-900">
               NamtanFilm & Lunar Schedule
             </h1>
           </div>
           <div className="flex items-center gap-3">
-            {loading && <div className="text-xs font-bold text-gray-400 animate-pulse">SYNCING...</div>}
+            {loading && <div className="text-xs font-bold text-gray-400 animate-pulse uppercase tracking-widest">Syncing...</div>}
+            <button 
+              onClick={() => setIsLegendOpen(!isLegendOpen)}
+              className={`flex items-center gap-2 px-6 py-3.5 rounded-2xl font-black text-sm uppercase transition-all shadow-sm border ${isLegendOpen ? 'bg-indigo-600 text-white border-transparent' : 'bg-white text-gray-600 border-gray-100 hover:bg-gray-50'}`}
+            >
+              <Filter size={18} />
+              {isLegendOpen ? 'Hide Filters' : 'Show Filters'}
+              {isLegendOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+            </button>
             {isAdmin ? (
               <button onClick={() => setIsAdmin(false)} className="w-14 h-14 bg-white border border-gray-200 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50 transition-colors shadow-sm">
                 <Unlock size={22} />
@@ -308,39 +323,42 @@ export default function App() {
           </div>
         </header>
 
-        <div className="bg-white rounded-[2.5rem] border border-gray-100 p-8 md:p-10 shadow-[0_2px_20px_rgb(0,0,0,0.02)]">
-          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-[0.15em] mb-6">Schedule Legend</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10">
-            <div>
-              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-[0.1em] mb-4">Artists (Click to Filter)</h4>
-              <div className="space-y-3">
-                {Object.values(CATEGORIES).map(cat => (
-                  <label key={cat.id} className="flex items-center cursor-pointer group">
-                    <input type="checkbox" checked={filters[cat.id]} onChange={() => toggleFilter(cat.id)} className="hidden"/>
-                    <div className={`flex items-center gap-3 w-full px-4 py-3 rounded-2xl transition-all duration-200 border ${filters[cat.id] ? `${cat.bg} border-transparent shadow-sm` : 'bg-white border-gray-200 opacity-50 grayscale'} ${filters[cat.id] ? cat.text : 'text-gray-400'}`}>
-                      <span className={`w-2 h-2 rounded-full ${cat.dot} flex-shrink-0`}></span>
-                      <span className="text-[13px] lg:text-[14px] font-bold whitespace-nowrap truncate">{cat.label}</span>
-                    </div>
-                  </label>
-                ))}
+        {/* Collapsible Legend Section */}
+        {isLegendOpen && (
+          <div className="bg-white rounded-[2.5rem] border border-gray-100 p-8 md:p-10 shadow-[0_4px_30px_rgb(0,0,0,0.04)] animate-in fade-in slide-in-from-top-4 duration-300">
+            <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-6">Schedule Filter System</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10">
+              <div>
+                <h4 className="text-[11px] font-black text-gray-300 uppercase tracking-[0.1em] mb-4">Artists</h4>
+                <div className="space-y-3">
+                  {Object.values(CATEGORIES).map(cat => (
+                    <label key={cat.id} className="flex items-center cursor-pointer group">
+                      <input type="checkbox" checked={filters[cat.id]} onChange={() => toggleFilter(cat.id)} className="hidden"/>
+                      <div className={`flex items-center gap-3 w-full px-4 py-3 rounded-2xl transition-all duration-200 border ${filters[cat.id] ? `${cat.bg} ${cat.dateBorder} shadow-sm` : 'bg-white border-gray-100 opacity-50 grayscale'} ${filters[cat.id] ? cat.text : 'text-gray-400'}`}>
+                        <span className={`w-2 h-2 rounded-full ${cat.dot} flex-shrink-0`}></span>
+                        <span className="text-[13px] lg:text-[14px] font-bold whitespace-nowrap truncate">{cat.label}</span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
-            <div>
-              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-[0.1em] mb-4">Event Remarks (Click to Filter)</h4>
-              <div className="space-y-3">
-                {Object.values(REMARKS).map(remark => (
-                  <label key={remark.id} className="flex items-center cursor-pointer group">
-                    <input type="checkbox" checked={remarkFilters[remark.id]} onChange={() => toggleRemarkFilter(remark.id)} className="hidden"/>
-                    <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 border ${remarkFilters[remark.id] ? `${remark.bg} border-transparent shadow-sm` : 'bg-white border-gray-200 opacity-50 grayscale'} ${remarkFilters[remark.id] ? remark.text : 'text-gray-400'}`}>
-                      <span className={`font-bold text-[13px] lg:text-[14px] min-w-[24px] flex-shrink-0 ${remarkFilters[remark.id] ? 'text-black' : 'text-gray-400'}`}>{remark.short}</span>
-                      <span className="text-[13px] lg:text-[14px] font-bold whitespace-nowrap truncate">{remark.label}</span>
-                    </div>
-                  </label>
-                ))}
+              <div>
+                <h4 className="text-[11px] font-black text-gray-300 uppercase tracking-[0.1em] mb-4">Event Remarks</h4>
+                <div className="space-y-3">
+                  {Object.values(REMARKS).map(remark => (
+                    <label key={remark.id} className="flex items-center cursor-pointer group">
+                      <input type="checkbox" checked={remarkFilters[remark.id]} onChange={() => toggleRemarkFilter(remark.id)} className="hidden"/>
+                      <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 border ${remarkFilters[remark.id] ? `${remark.bg} ${remark.border} shadow-sm` : 'bg-white border-gray-100 opacity-50 grayscale'} ${remarkFilters[remark.id] ? remark.text : 'text-gray-400'}`}>
+                        <span className={`font-black text-[13px] lg:text-[14px] min-w-[24px] flex-shrink-0`}>{remark.short}</span>
+                        <span className="text-[13px] lg:text-[14px] font-bold whitespace-nowrap truncate">{remark.label}</span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-[0_2px_20px_rgb(0,0,0,0.02)] p-6 md:p-8">
           <div className="flex justify-between items-center mb-6 px-2">
@@ -403,27 +421,67 @@ export default function App() {
                 const remark = REMARKS[event.remarkId];
                 const eventDate = new Date(event.date);
                 return (
-                  <div key={event.id} className="bg-white rounded-[2rem] border border-gray-100 p-6 md:p-8 shadow-[0_2px_20px_rgb(0,0,0,0.02)]">
-                    <div className="flex flex-col md:flex-row gap-6 md:items-center">
-                      <div className={`w-[84px] h-[84px] rounded-3xl border-2 ${cat.dateBorder} flex flex-col items-center justify-center flex-shrink-0 bg-white shadow-sm`}><span className={`text-[13px] font-extrabold uppercase tracking-wide ${cat.dateMonthText}`}>{eventDate.toLocaleString('default', { month: 'short' })}</span><span className="text-[32px] font-black text-[#111827] leading-none mt-0.5">{eventDate.getDate()}</span></div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2.5"><span className={`w-3 h-3 rounded-full ${cat.dot} shadow-sm`}></span><h3 className="text-[22px] font-black text-[#111827] leading-tight">{event.title}</h3></div>
-                        <div className="flex flex-wrap items-center gap-5 text-[15px] font-bold text-gray-500">
-                          <div className="flex items-center gap-1.5"><Clock size={18} strokeWidth={2.5} className="text-gray-400" />{event.isTBA ? <span className="text-orange-500">TBA</span> : event.time}</div>
-                          <div className="flex items-center gap-1.5"><MapPin size={18} strokeWidth={2.5} className="text-gray-400" />{event.location || 'TBA'}</div>
+                  <div key={event.id} className="bg-white rounded-[2rem] border border-gray-100 p-5 md:p-8 shadow-[0_2px_20px_rgb(0,0,0,0.02)]">
+                    <div className="flex flex-col md:flex-row gap-5 md:items-start">
+                      
+                      {/* Date Block */}
+                      <div className={`w-[74px] h-[74px] md:w-[84px] md:h-[84px] rounded-3xl border-2 ${cat.dateBorder} flex flex-col items-center justify-center bg-white shadow-sm flex-shrink-0`}>
+                        <span className={`text-[11px] md:text-[13px] font-extrabold uppercase tracking-wide ${cat.dateMonthText}`}>{eventDate.toLocaleString('default', { month: 'short' })}</span>
+                        <span className="text-[28px] md:text-[32px] font-black text-[#111827] leading-none mt-0.5">{eventDate.getDate()}</span>
+                      </div>
+
+                      {/* Content Section */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                          <div className="min-w-0">
+                            <h3 className="text-[19px] md:text-[22px] font-black text-[#111827] leading-tight break-words">{event.title}</h3>
+                            <div className="flex flex-wrap items-center gap-5 text-[14px] md:text-[15px] font-bold text-gray-500 mt-2">
+                              <div className="flex items-center gap-1.5"><Clock size={18} strokeWidth={2.5} className="text-gray-400" />{event.isTBA ? <span className="text-orange-500 font-black">TBA</span> : event.time}</div>
+                              <div className="flex items-center gap-1.5"><MapPin size={18} strokeWidth={2.5} className="text-gray-400" />{event.location || 'TBA'}</div>
+                            </div>
+                          </div>
+                          
+                          {/* Badges Stacked on Right */}
+                          <div className="flex flex-col items-end gap-2 flex-shrink-0 sm:mt-1">
+                            {/* Artist Badge */}
+                            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-black shadow-sm border ${cat.bg} ${cat.text} ${cat.dateBorder}`}>
+                              <span className={`w-2 h-2 rounded-full ${cat.dot}`}></span>
+                              {cat.label}
+                            </div>
+                            
+                            {/* Remark Badge */}
+                            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-black shadow-sm border ${remark.bg} ${remark.text} ${remark.border}`}>
+                              <span>{remark.short}</span>
+                              {remark.label}
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      <div className={`px-5 py-2.5 rounded-xl flex items-center gap-2 ${remark.bg} ${remark.text}`}><span className="font-extrabold text-black">{remark.short}</span><span className="font-bold text-[14px]">{remark.label}</span></div>
                     </div>
+
+                    {/* Extended Details (Keywords, Hashtags, Notes) */}
                     {(event.keywords || event.hashtags || event.notes) && (
                       <div className="mt-6 pt-6 border-t border-gray-100 space-y-4">
-                        {(event.keywords || event.hashtags) && (
-                          <div className="space-y-2">
-                            {event.keywords && <div className="flex text-[15px]"><span className="font-extrabold text-gray-400 uppercase tracking-wide w-[110px]">Keyword :</span><span className="font-bold text-[#3b82f6]">{event.keywords}</span></div>}
-                            {event.hashtags && <div className="flex text-[15px]"><span className="font-extrabold text-gray-400 uppercase tracking-wide w-[110px]">Hashtag :</span><span className="font-bold text-[#3b82f6]">{event.hashtags}</span></div>}
+                        <div className="flex flex-wrap gap-x-8 gap-y-3">
+                          {event.keywords && (
+                            <div className="flex items-center gap-3 text-[14px]">
+                              <span className="font-black text-gray-400 uppercase tracking-widest text-[10px] bg-gray-50 px-2 py-1 rounded-md border border-gray-100">Keyword</span>
+                              <span className="font-bold text-[#3b82f6]">{event.keywords}</span>
+                            </div>
+                          )}
+                          {event.hashtags && (
+                            <div className="flex items-center gap-3 text-[14px]">
+                              <span className="font-black text-gray-400 uppercase tracking-widest text-[10px] bg-gray-50 px-2 py-1 rounded-md border border-gray-100">Hashtag</span>
+                              <span className="font-bold text-[#3b82f6] italic">{event.hashtags}</span>
+                            </div>
+                          )}
+                        </div>
+                        {event.notes && (
+                          <div className="bg-[#f8fafc] rounded-2xl p-4 flex items-start gap-3 mt-4 border border-gray-100 group transition-all hover:bg-white hover:shadow-sm">
+                            <Info size={18} className="text-gray-300 mt-1 flex-shrink-0 group-hover:text-indigo-400 transition-colors" strokeWidth={3} />
+                            <p className="text-[14.5px] font-medium text-gray-600 whitespace-pre-wrap leading-relaxed">{event.notes}</p>
                           </div>
                         )}
-                        {event.notes && <div className="bg-[#f8fafc] rounded-2xl p-4 flex items-start gap-3 mt-4"><Info size={20} className="text-gray-400 mt-0.5 flex-shrink-0" strokeWidth={2.5} /><p className="text-[14.5px] font-medium text-gray-600 whitespace-pre-wrap leading-relaxed">{event.notes}</p></div>}
                       </div>
                     )}
                   </div>
@@ -456,24 +514,64 @@ export default function App() {
         const eventDate = new Date(viewingEvent.date);
         return (
           <div className="fixed inset-0 bg-[#111827]/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
-            <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-lg relative my-8">
+            <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-lg relative my-8 animate-in zoom-in-95 duration-200">
               <button onClick={() => setViewingEvent(null)} className="absolute top-6 right-6 text-gray-400 hover:text-gray-800 bg-gray-50 p-2 rounded-full transition-colors"><X size={20}/></button>
-              <div className="flex items-start gap-3 mb-6 pr-8"><span className={`w-3.5 h-3.5 mt-2 rounded-full ${cat.dot} flex-shrink-0 shadow-sm`}></span><h2 className="text-2xl font-black text-[#111827] leading-tight">{viewingEvent.title}</h2></div>
-              <div className="space-y-4 mb-8">
-                <div className="flex flex-wrap items-center gap-2 mb-4">
-                  <span className={`px-3 py-1 rounded-lg text-[13px] font-bold ${cat.bg} ${cat.text}`}>{cat.label.split(' | ')[1]}</span>
-                  {remark.id !== 'none' && <span className={`px-3 py-1 rounded-lg text-[13px] font-bold ${remark.bg} ${remark.text}`}>{remark.short} {remark.label.split(' | ')[0]}</span>}
-                </div>
-                <div className="flex flex-col gap-3 text-[15px] font-bold text-gray-600">
-                  <div className="flex items-center gap-2.5"><CalendarIcon size={18} strokeWidth={2.5} className="text-gray-400" /><span>{eventDate.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span></div>
-                  <div className="flex items-center gap-2.5"><Clock size={18} strokeWidth={2.5} className="text-gray-400" />{viewingEvent.isTBA ? <span className="text-orange-500">TBA</span> : viewingEvent.time}</div>
-                  <div className="flex items-start gap-2.5"><MapPin size={18} strokeWidth={2.5} className="text-gray-400 mt-0.5 flex-shrink-0" /><span className="leading-snug">{viewingEvent.location || 'Location TBA'}</span></div>
-                </div>
+              
+              <div className="flex items-start gap-3 mb-6 pr-8">
+                <span className={`w-3.5 h-3.5 mt-2 rounded-full ${cat.dot} flex-shrink-0 shadow-sm`}></span>
+                <h2 className="text-2xl font-black text-[#111827] leading-tight">{viewingEvent.title}</h2>
               </div>
+
+              <div className="space-y-6 mb-8">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`px-3 py-1.5 rounded-xl text-[12px] font-black ${cat.bg} ${cat.text} border ${cat.dateBorder}`}>{cat.label}</span>
+                  {remark.id !== 'none' && <span className={`px-3 py-1.5 rounded-xl text-[12px] font-black ${remark.bg} ${remark.text} border ${remark.border}`}>{remark.short} {remark.label}</span>}
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 text-[15px] font-bold text-gray-600 bg-gray-50/50 p-5 rounded-2xl border border-gray-100">
+                  <div className="flex items-center gap-3"><CalendarIcon size={18} strokeWidth={2.5} className="text-gray-400" /><span>{eventDate.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span></div>
+                  <div className="flex items-center gap-3"><Clock size={18} strokeWidth={2.5} className="text-gray-400" />{viewingEvent.isTBA ? <span className="text-orange-500 font-black tracking-widest">TIME TBA</span> : viewingEvent.time}</div>
+                  <div className="flex items-start gap-3"><MapPin size={18} strokeWidth={2.5} className="text-gray-400 mt-0.5 flex-shrink-0" /><span className="leading-snug">{viewingEvent.location || 'Location TBA'}</span></div>
+                </div>
+
+                {/* Extended Details in Modal */}
+                {(viewingEvent.keywords || viewingEvent.hashtags || viewingEvent.notes) && (
+                  <div className="space-y-4 pt-4 border-t border-gray-100">
+                    {viewingEvent.keywords && (
+                      <div className="flex gap-4">
+                        <Tag size={16} className="text-gray-400 mt-1 flex-shrink-0" strokeWidth={3} />
+                        <div>
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Keywords</p>
+                          <p className="text-sm font-bold text-blue-600 leading-tight">{viewingEvent.keywords}</p>
+                        </div>
+                      </div>
+                    )}
+                    {viewingEvent.hashtags && (
+                      <div className="flex gap-4">
+                        <Hash size={16} className="text-gray-400 mt-1 flex-shrink-0" strokeWidth={3} />
+                        <div>
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Hashtags</p>
+                          <p className="text-sm font-bold text-blue-600 italic leading-tight">{viewingEvent.hashtags}</p>
+                        </div>
+                      </div>
+                    )}
+                    {viewingEvent.notes && (
+                      <div className="flex gap-4 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                        <Info size={16} className="text-gray-400 mt-1 flex-shrink-0" strokeWidth={3} />
+                        <div>
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Notes</p>
+                          <p className="text-sm font-medium text-gray-600 whitespace-pre-wrap leading-relaxed">{viewingEvent.notes}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {isAdmin && (
                 <div className="flex gap-3 pt-6 border-t border-gray-100">
-                  <button onClick={() => { setViewingEvent(null); openEditModal(viewingEvent); }} className="flex-1 bg-blue-50 text-blue-600 font-bold py-3.5 rounded-2xl hover:bg-blue-100 transition-colors flex items-center justify-center gap-2"><Edit size={18} strokeWidth={2.5} /> Edit</button>
-                  <button onClick={() => handleDelete(viewingEvent.id)} className="flex-1 bg-red-50 text-red-500 font-bold py-3.5 rounded-2xl hover:bg-red-100 transition-colors flex items-center justify-center gap-2"><Trash2 size={18} strokeWidth={2.5} /> Delete</button>
+                  <button onClick={() => { setViewingEvent(null); openEditModal(viewingEvent); }} className="flex-1 bg-blue-50 text-blue-600 font-bold py-3.5 rounded-2xl hover:bg-blue-100 transition-colors flex items-center justify-center gap-2 shadow-sm"><Edit size={18} strokeWidth={2.5} /> Edit</button>
+                  <button onClick={() => handleDelete(viewingEvent.id)} className="flex-1 bg-red-50 text-red-500 font-bold py-3.5 rounded-2xl hover:bg-red-100 transition-colors flex items-center justify-center gap-2 shadow-sm"><Trash2 size={18} strokeWidth={2.5} /> Delete</button>
                 </div>
               )}
             </div>
@@ -488,31 +586,38 @@ export default function App() {
               <h2 className="text-2xl font-black text-[#111827] flex items-center gap-3">{editingEvent ? <Edit size={24}/> : <Plus size={24}/>}{editingEvent ? 'Edit Event' : 'Create New Event'}</h2>
               <button onClick={() => setShowEventModal(false)} className="text-gray-400 hover:text-gray-800 bg-gray-50 p-2 rounded-full"><X size={20}/></button>
             </div>
-            <div className="p-8 overflow-y-auto">
+            <div className="p-8 overflow-y-auto custom-scrollbar">
               <form id="event-form" onSubmit={handleSaveEvent} className="space-y-8">
                 <div>
-                  <label className="block text-[13px] font-bold text-gray-400 uppercase tracking-wider mb-3">Artist</label>
+                  <label className="block text-[13px] font-black text-gray-400 uppercase tracking-widest mb-4">Artist</label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {Object.values(CATEGORIES).map(cat => (
                       <div key={cat.id} onClick={() => setFormData({...formData, categoryId: cat.id})} className={`cursor-pointer border-2 rounded-2xl p-4 transition-all duration-200 flex items-center gap-3 ${formData.categoryId === cat.id ? `${cat.dateBorder} ${cat.bg} shadow-sm scale-[1.02]` : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50 grayscale opacity-70'}`}>
                         <span className={`w-3 h-3 rounded-full ${cat.dot} flex-shrink-0`}></span>
-                        <div><div className={`text-[14px] font-bold ${formData.categoryId === cat.id ? cat.text : 'text-gray-600'}`}>{cat.label.split(' | ')[1]}</div><div className="text-[12px] font-medium text-gray-500 mt-0.5">{cat.label.split(' | ')[0]}</div></div>
+                        <div className={`text-[15px] font-black ${formData.categoryId === cat.id ? cat.text : 'text-gray-600'}`}>
+                          {cat.label.split(' | ')[0]}
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
-                  <div className="col-span-1 md:col-span-2"><label className="block text-[13px] font-bold text-gray-400 uppercase tracking-wider mb-2">Event Title *</label><input required type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full bg-[#f8fafc] rounded-2xl p-4 border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none font-bold text-gray-800" placeholder="e.g. Fanmeet 2026"/></div>
-                  <div><label className="block text-[13px] font-bold text-gray-400 uppercase tracking-wider mb-2">Date *</label><input required type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full bg-[#f8fafc] rounded-2xl p-4 border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none font-bold text-gray-800"/></div>
+                  <div className="col-span-1 md:col-span-2"><label className="block text-[13px] font-black text-gray-400 uppercase tracking-widest mb-2">Event Title *</label><input required type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full bg-[#f8fafc] rounded-2xl p-4 border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none font-bold text-gray-800" /></div>
+                  <div><label className="block text-[13px] font-black text-gray-400 uppercase tracking-widest mb-2">Date *</label><input required type="date" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full bg-[#f8fafc] rounded-2xl p-4 border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none font-bold text-gray-800"/></div>
                   <div>
-                    <div className="flex justify-between items-end mb-2"><label className="block text-[13px] font-bold text-gray-400 uppercase tracking-wider">Time</label><label className="flex items-center gap-2 text-[13px] font-bold text-gray-600 cursor-pointer"><input type="checkbox" checked={formData.isTBA} onChange={e => setFormData({...formData, isTBA: e.target.checked})} className="rounded text-blue-500 focus:ring-blue-500 border-gray-300 w-4 h-4"/>TBA</label></div>
+                    <div className="flex justify-between items-end mb-2"><label className="block text-[13px] font-black text-gray-400 uppercase tracking-widest">Time</label><label className="flex items-center gap-2 text-[13px] font-bold text-gray-600 cursor-pointer"><input type="checkbox" checked={formData.isTBA} onChange={e => setFormData({...formData, isTBA: e.target.checked})} className="rounded text-blue-500 focus:ring-blue-500 border-gray-300 w-4 h-4"/>TBA</label></div>
                     <input type="time" disabled={formData.isTBA} value={formData.time} onChange={e => setFormData({...formData, time: e.target.value})} className="w-full bg-[#f8fafc] rounded-2xl p-4 border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none font-bold text-gray-800 disabled:opacity-50"/>
                   </div>
-                  <div className="col-span-1 md:col-span-2"><label className="block text-[13px] font-bold text-gray-400 uppercase tracking-wider mb-2">Location</label><input type="text" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full bg-[#f8fafc] rounded-2xl p-4 border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none font-bold text-gray-800" placeholder="Venue, City..."/></div>
-                  <div className="col-span-1 md:col-span-2"><label className="block text-[13px] font-bold text-gray-400 uppercase tracking-wider mb-2">Event Remark</label><select value={formData.remarkId} onChange={e => setFormData({...formData, remarkId: e.target.value})} className="w-full bg-[#f8fafc] rounded-2xl p-4 border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none font-bold text-gray-800">{Object.values(REMARKS).map(remark => (<option key={remark.id} value={remark.id}>{remark.short} {remark.label}</option>))}</select></div>
-                  <div className="col-span-1 md:col-span-2"><label className="block text-[13px] font-bold text-gray-400 uppercase tracking-wider mb-2">Keywords</label><input type="text" value={formData.keywords} onChange={e => setFormData({...formData, keywords: e.target.value})} className="w-full bg-[#f8fafc] rounded-2xl p-4 border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none font-bold text-gray-800" /></div>
-                  <div className="col-span-1 md:col-span-2"><label className="block text-[13px] font-bold text-gray-400 uppercase tracking-wider mb-2">Hashtags</label><input type="text" value={formData.hashtags} onChange={e => setFormData({...formData, hashtags: e.target.value})} className="w-full bg-[#f8fafc] rounded-2xl p-4 border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none font-bold text-gray-800" /></div>
-                  <div className="col-span-1 md:col-span-2"><label className="block text-[13px] font-bold text-gray-400 uppercase tracking-wider mb-2">Notes / Additional Info</label><textarea rows={3} value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full bg-[#f8fafc] rounded-2xl p-4 border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none font-medium text-gray-800"></textarea></div>
+                  <div className="col-span-1 md:col-span-2"><label className="block text-[13px] font-black text-gray-400 uppercase tracking-widest mb-2">Location</label><input type="text" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} className="w-full bg-[#f8fafc] rounded-2xl p-4 border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none font-bold text-gray-800" /></div>
+                  <div className="col-span-1 md:col-span-2">
+                    <label className="block text-[13px] font-black text-gray-400 uppercase tracking-widest mb-2">Event Remark</label>
+                    <select value={formData.remarkId} onChange={e => setFormData({...formData, remarkId: e.target.value})} className="w-full bg-[#f8fafc] rounded-2xl p-4 border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none font-bold text-gray-800">
+                      {Object.values(REMARKS).map(remark => (<option key={remark.id} value={remark.id}>{remark.label}</option>))}
+                    </select>
+                  </div>
+                  <div className="col-span-1 md:col-span-2"><label className="block text-[13px] font-black text-gray-400 uppercase tracking-widest mb-2">Keywords</label><input type="text" value={formData.keywords} onChange={e => setFormData({...formData, keywords: e.target.value})} className="w-full bg-[#f8fafc] rounded-2xl p-4 border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none font-bold text-gray-800"  /></div>
+                  <div className="col-span-1 md:col-span-2"><label className="block text-[13px] font-black text-gray-400 uppercase tracking-widest mb-2">Hashtags</label><input type="text" value={formData.hashtags} onChange={e => setFormData({...formData, hashtags: e.target.value})} className="w-full bg-[#f8fafc] rounded-2xl p-4 border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none font-bold text-gray-800" /></div>
+                  <div className="col-span-1 md:col-span-2"><label className="block text-[13px] font-black text-gray-400 uppercase tracking-widest mb-2">Notes</label><textarea rows={3} value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} className="w-full bg-[#f8fafc] rounded-2xl p-4 border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none font-medium text-gray-800" ></textarea></div>
                 </div>
               </form>
             </div>
