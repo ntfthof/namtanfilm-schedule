@@ -223,9 +223,12 @@ export default function App() {
   }, [user]);
 
   const sortEventsByTime = (a, b) => {
-    if (a.isTBA && !b.isTBA) return 1;
-    if (!a.isTBA && b.isTBA) return -1;
-    if (a.isTBA && b.isTBA) return 0;
+    const aIsTBA = a.isTBA || !a.time;
+    const bIsTBA = b.isTBA || !b.time;
+
+    if (aIsTBA && !bIsTBA) return 1;
+    if (!aIsTBA && bIsTBA) return -1;
+    if (aIsTBA && bIsTBA) return 0;
     return a.time.localeCompare(b.time);
   };
 
