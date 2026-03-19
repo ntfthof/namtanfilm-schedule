@@ -433,7 +433,7 @@ export default function App() {
                         const remark = REMARKS[event.remarkId];
 
                         return (
-                          <div key={event.id} className={`flex flex-col md:flex-row gap-6 md:gap-10 ${idx > 0 ? 'pt-0.5 mt-8 border-t border-gray-100' : ''}`}>
+                          <div key={event.id} className={`flex flex-col md:flex-row gap-6 md:gap-10 ${idx > 0 ? 'pt-0.5 md:pt-6 mt-8 border-t border-gray-100' : ''}`}>
                             
                             {/* DATE BLOCK */}
                             <div className="flex-shrink-0">
