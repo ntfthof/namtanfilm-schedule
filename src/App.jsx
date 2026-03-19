@@ -238,12 +238,13 @@ export default function App() {
 
     return events
       .filter(event => {
-        const eventDate = new Date(event.date);
-        const matchesMonth = eventDate.getFullYear() === currentYear && eventDate.getMonth() === currentMonthIndex;
+        // Robust month filtering using string parts to avoid timezone shifts
+        const [year, month] = event.date.split('-').map(Number);
+        const matchesMonth = year === currentYear && (month - 1) === currentMonthIndex;
         return filters[event.categoryId] && remarkFilters[event.remarkId] && matchesMonth;
       })
       .sort((a, b) => {
-        const dateDiff = new Date(a.date).getTime() - new Date(b.date).getTime();
+        const dateDiff = a.date.localeCompare(b.date);
         if (dateDiff !== 0) return dateDiff;
         return sortEventsByTime(a, b);
       });
@@ -533,7 +534,7 @@ export default function App() {
                                   </div>
                                 </div>
                                 
-                                {/* TAGS (Mobile Alignment Fix: items-end & text-right) */}
+                                {/* TAGS (Robust mobile alignment: justify-end & max-w) */}
                                 <div className={`flex-shrink-0 w-full md:w-auto mt-3 md:mt-0 gap-1.5 flex flex-col items-end md:items-end ${idx === 0 ? 'hidden md:flex' : 'flex'}`}>
                                   <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] md:text-[11px] font-bold border ${cat.bg} ${cat.text} ${cat.border} transition-colors whitespace-nowrap max-w-full justify-end`}>
                                     <span className={`w-1.5 h-1.5 rounded-full ${cat.dot} flex-shrink-0`}></span>
