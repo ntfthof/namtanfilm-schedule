@@ -10,13 +10,16 @@ import {
   Unlock, 
   X, 
   ChevronLeft, 
-  ChevronRight,
-  ChevronDown,
-  ChevronUp,
-  Info,
-  Filter,
-  Hash,
-  Tag
+  ChevronRight, 
+  ChevronDown, 
+  ChevronUp, 
+  Info, 
+  Filter, 
+  Hash, 
+  Tag, 
+  Copy, 
+  Check, 
+  CalendarCheck 
 } from 'lucide-react';
 
 // Firebase Imports
@@ -179,6 +182,10 @@ export default function App() {
   // Quick Date Jump State
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [pickerYear, setPickerYear] = useState(new Date().getFullYear());
+  
+  // Active Archive State
+  const [showPastEvents, setShowPastEvents] = useState(false);
+  const [copiedId, setCopiedId] = useState(null);
 
   const [filters, setFilters] = useState(
     Object.keys(CATEGORIES).reduce((acc, key) => ({...acc, [key]: true}), {})
@@ -241,6 +248,14 @@ export default function App() {
     return a.time.localeCompare(b.time);
   };
 
+  const formatLocalDate = (date) => {
+    if (!date) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const filteredEvents = useMemo(() => {
     const year = currentMonth.getFullYear();
     const monthIndex = currentMonth.getMonth();
@@ -258,14 +273,39 @@ export default function App() {
       });
   }, [events, filters, remarkFilters, currentMonth]);
 
-  const groupedEvents = useMemo(() => {
-    const groups = {};
+  // Grouping logic with Active Archive (Option A)
+  const { upcomingGrouped, pastGrouped, isCurrentMonth, todayStr } = useMemo(() => {
+    const today = new Date();
+    const tStr = formatLocalDate(today);
+    const selectedYear = currentMonth.getFullYear();
+    const selectedMonth = currentMonth.getMonth();
+    const isCurrent = today.getFullYear() === selectedYear && today.getMonth() === selectedMonth;
+
+    const upcoming = {};
+    const past = {};
+
     filteredEvents.forEach(event => {
-      if (!groups[event.date]) groups[event.date] = [];
-      groups[event.date].push(event);
+      if (isCurrent) {
+        if (event.date >= tStr) {
+          if (!upcoming[event.date]) upcoming[event.date] = [];
+          upcoming[event.date].push(event);
+        } else {
+          if (!past[event.date]) past[event.date] = [];
+          past[event.date].push(event);
+        }
+      } else {
+        if (!upcoming[event.date]) upcoming[event.date] = [];
+        upcoming[event.date].push(event);
+      }
     });
-    return Object.entries(groups);
-  }, [filteredEvents]);
+
+    return { 
+      upcomingGrouped: Object.entries(upcoming).sort((a, b) => a[0].localeCompare(b[0])), 
+      pastGrouped: Object.entries(past).sort((a, b) => b[0].localeCompare(a[0])),
+      isCurrentMonth: isCurrent,
+      todayStr: tStr
+    };
+  }, [filteredEvents, currentMonth]);
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -286,12 +326,32 @@ export default function App() {
     setRemarkFilters(prev => ({ ...prev, [remarkId]: !prev[remarkId] }));
   };
 
-  const formatLocalDate = (date) => {
-    if (!date) return '';
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+  const handleCopyTrending = (event) => {
+    if (!event.keywords && !event.hashtags) return;
+    
+    const parts = [];
+    if (event.keywords) parts.push(event.keywords.trim());
+    if (event.hashtags) {
+      const tags = event.hashtags.split(/[\s,]+/).filter(t => t.trim());
+      tags.forEach(tag => {
+        parts.push(tag.startsWith('#') ? tag : `#${tag}`);
+      });
+    }
+    
+    const textToCopy = parts.join('\n');
+    
+    const textArea = document.createElement("textarea");
+    textArea.value = textToCopy;
+    document.body.appendChild(textArea);
+    textArea.select();
+    try {
+      document.execCommand('copy');
+      setCopiedId(event.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (err) {
+      console.error('Copy failed', err);
+    }
+    document.body.removeChild(textArea);
   };
 
   const openAddModal = (dateStr = '') => {
@@ -345,6 +405,7 @@ export default function App() {
   const jumpToDate = (monthIdx, year) => {
     setCurrentMonth(new Date(year, monthIdx, 1));
     setShowDatePicker(false);
+    setShowPastEvents(false); 
   };
 
   const calendarDays = useMemo(() => {
@@ -362,6 +423,128 @@ export default function App() {
     if (!date) return [];
     const dateStr = formatLocalDate(date);
     return filteredEvents.filter(e => e.date === dateStr);
+  };
+
+  const renderEventListGroup = (groupedData) => {
+    return groupedData.map(([date, dayEvents]) => {
+      const eventDate = new Date(date);
+      const firstEventTheme = CATEGORIES[dayEvents[0].categoryId];
+      const isPast = date < todayStr;
+
+      return (
+        <div key={date} className="bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-[0_2px_20px_rgb(0,0,0,0.02)] p-6 md:p-8">
+          <div className="flex flex-col gap-0">
+            {dayEvents.map((event, idx) => {
+              const cat = CATEGORIES[event.categoryId];
+              const remark = REMARKS[event.remarkId];
+
+              return (
+                <div key={event.id} className={`flex flex-col md:flex-row gap-6 md:gap-10 ${idx > 0 ? 'pt-0.5 md:pt-6 mt-8 border-t border-gray-100' : ''}`}>
+                  
+                  <div className="flex-shrink-0">
+                    {idx === 0 ? (
+                      <div className="flex items-center justify-between md:block w-full md:w-auto">
+                        <div className={`w-[80px] h-[80px] md:w-[94px] md:h-[94px] rounded-3xl border-2 ${firstEventTheme.dateBorder} flex flex-col items-center justify-center bg-white shadow-sm flex-shrink-0`}>
+                          <span className={`text-[11px] md:text-[13px] font-extrabold uppercase tracking-wide ${firstEventTheme.dateMonthText}`}>{eventDate.toLocaleString('default', { month: 'short' })}</span>
+                          <span className="text-[30px] md:text-[36px] font-black text-[#111827] leading-none mt-0.5">{eventDate.getDate()}</span>
+                        </div>
+                        
+                        <div className="md:hidden flex flex-row flex-wrap items-center justify-end gap-1.5 ml-4 flex-1">
+                          <div className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold border ${cat.bg} ${cat.text} ${cat.border} transition-colors whitespace-nowrap max-w-full justify-end`}>
+                            <span className={`w-1 h-1 rounded-full ${cat.dot} flex-shrink-0`}></span>
+                            <span className="break-words whitespace-normal text-right">{cat.label}</span>
+                          </div>
+                          <div className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold border ${remark.bg} ${remark.text} ${remark.border} transition-colors whitespace-nowrap max-w-full justify-end`}>
+                            <span className="opacity-70 flex-shrink-0">{remark.short}</span>
+                            <span className="break-words whitespace-normal text-right">{remark.label}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="hidden md:block w-[94px]"></div>
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className={`flex flex-col md:flex-row items-start justify-between gap-2 md:gap-6`}>
+                      <div className="min-w-0 flex-1 w-full">
+                        <h3 className="text-[20px] md:text-[23px] font-black text-[#000000] cursor-pointer leading-tight break-words hover:text-blue-700 transition-colors" onClick={() => setViewingEvent(event)}>
+                          {event.title}
+                        </h3>
+                        
+                        <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1.5 text-[14px] md:text-[15px] font-bold text-gray-500 mt-2 md:mt-2.5 bg-transparent border-none p-0 rounded-none">
+                          {(event.time || event.isTBA) && (
+                            <div className="flex items-center gap-2 flex-shrink-0 font-black">
+                              <Clock size={17} strokeWidth={2.5} className="text-gray-400" />
+                              {event.isTBA ? <span className="text-orange-500">TBA</span> : event.time}
+                            </div>
+                          )}
+                          {event.location && (
+                            <div className="flex items-start gap-2 min-w-0 flex-1 font-black">
+                              <MapPin size={17} strokeWidth={2.5} className="text-gray-400 mt-0.5 flex-shrink-0" />
+                              <span className="leading-snug break-words whitespace-normal">{event.location}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className={`flex-shrink-0 w-full md:w-auto mt-3 md:mt-0 gap-1.5 flex flex-col items-end md:items-end ${idx === 0 ? 'hidden md:flex' : 'flex'}`}>
+                        <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] md:text-[11px] font-bold border ${cat.bg} ${cat.text} ${cat.border} transition-colors whitespace-nowrap max-w-full justify-end`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${cat.dot} flex-shrink-0`}></span>
+                          <span className="break-words whitespace-normal text-right">{cat.label}</span>
+                        </div>
+                        <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] md:text-[11px] font-bold border ${remark.bg} ${remark.text} ${remark.border} transition-colors max-w-full justify-end`}>
+                          <span className="opacity-70 flex-shrink-0">{remark.short}</span>
+                          <span className="break-words whitespace-normal text-right">{remark.label}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {(event.keywords || event.hashtags || event.notes) && (
+                      <div className="space-y-4 mt-4 md:mt-5">
+                        <div className="grid grid-cols-1 gap-y-3">
+                          {event.keywords && (
+                            <div className="flex items-start gap-3 text-[14px] min-w-0">
+                              <span className="font-black text-gray-400 uppercase tracking-widest text-[9px] bg-gray-50 px-2 py-1 rounded-md border border-gray-100 flex-shrink-0 mt-0.5">Keyword</span>
+                              <span className="font-bold text-blue-600/80 break-words flex-1 min-w-0 whitespace-normal">{event.keywords}</span>
+                            </div>
+                          )}
+                          {event.hashtags && (
+                            <div className="flex items-start gap-3 text-[14px] min-w-0">
+                              <span className="font-black text-gray-400 uppercase tracking-widest text-[9px] bg-gray-50 px-2 py-1 rounded-md border border-gray-100 flex-shrink-0 mt-0.5">Hashtag</span>
+                              <span className="font-bold text-blue-600/80 italic break-words flex-1 min-w-0 whitespace-normal">{event.hashtags}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                          {event.notes ? (
+                            <div className="bg-[#f8fafc] rounded-2xl p-4 flex items-start gap-3 border border-gray-100 overflow-hidden flex-1 w-full">
+                              <Info size={18} className="text-gray-400/60 mt-1 flex-shrink-0" strokeWidth={3} />
+                              <p className="text-[14px] font-medium text-gray-600/90 whitespace-pre-wrap leading-relaxed break-words flex-1 min-w-0">{event.notes}</p>
+                            </div>
+                          ) : <div className="flex-1"></div>}
+                          
+                          {!isPast && (event.keywords || event.hashtags) && (
+                            <button 
+                              onClick={() => handleCopyTrending(event)}
+                              className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-sm border ${copiedId === event.id ? 'bg-emerald-500 text-white border-transparent' : 'bg-gray-900 text-white border-transparent hover:bg-gray-800 active:scale-95'}`}
+                            >
+                              {copiedId === event.id ? <Check size={16} /> : <Copy size={16} />}
+                              {copiedId === event.id ? 'Copied!' : 'Copy for X'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    });
   };
 
   return (
@@ -438,12 +621,9 @@ export default function App() {
           </div>
         )}
 
-        {/* Calendar Grid View */}
         <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-[0_2px_20px_rgb(0,0,0,0.02)] p-6 md:p-8">
           <div className="flex justify-between items-center mb-6 px-2">
             <button onClick={prevMonth} className="w-12 h-12 flex items-center justify-center rounded-2xl border border-gray-100 hover:bg-gray-50 transition-colors text-gray-800 shadow-sm"><ChevronLeft size={24} strokeWidth={2.5}/></button>
-            
-            {/* Quick Date Jump Header */}
             <button 
               onClick={() => {
                 setPickerYear(currentMonth.getFullYear());
@@ -456,7 +636,6 @@ export default function App() {
               </h2>
               <ChevronDown size={20} className="text-gray-400 group-hover:text-blue-600 group-hover:translate-y-0.5 transition-all" />
             </button>
-
             <button onClick={nextMonth} className="w-12 h-12 flex items-center justify-center rounded-2xl border border-gray-100 hover:bg-gray-50 transition-colors text-gray-800 shadow-sm"><ChevronRight size={24} strokeWidth={2.5}/></button>
           </div>
           
@@ -497,137 +676,69 @@ export default function App() {
           </div>
         </div>
 
-        {/* Detailed Schedule List View */}
         <div className="pt-4">
           <div className="flex justify-between items-baseline mb-6 px-2">
-            <h2 className="text-[20px] font-black tracking-[0.15em] uppercase text-[#111827]">Monthly Schedule List</h2>
-            <span className="text-[15px] font-bold text-gray-400">{filteredEvents.length} Events Scheduled</span>
+            <h2 className="text-[20px] font-black tracking-[0.15em] uppercase text-[#111827]">
+              Monthly Schedule List
+            </h2>
+            <span className="text-[15px] font-bold text-gray-400">{filteredEvents.length} Events Total</span>
           </div>
-          {groupedEvents.length === 0 ? (
+
+          {filteredEvents.length === 0 ? (
             <div className="bg-white rounded-[2.5rem] border border-gray-100 p-16 text-center text-gray-400 shadow-[0_2px_20px_rgb(0,0,0,0.02)]">
               <CalendarIcon size={48} className="mx-auto mb-4 opacity-20" /><p className="text-lg font-bold">No events scheduled for this month.</p>
             </div>
           ) : (
-            <div className="space-y-6">
-              {groupedEvents.map(([date, dayEvents]) => {
-                const eventDate = new Date(date);
-                const firstEventTheme = CATEGORIES[dayEvents[0].categoryId];
+            <div className="space-y-8">
+              {/* CURRENT MONTH SUB-HEADER */}
+              {isCurrentMonth && (
+                <div className="px-2 -mb-2">
+                  <span className="font-black uppercase tracking-[0.2em] text-[11px] text-blue-600/60 bg-blue-50/50 px-3 py-1.5 rounded-lg border border-blue-100">Upcoming Events</span>
+                </div>
+              )}
 
-                return (
-                  <div key={date} className="bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-[0_2px_20px_rgb(0,0,0,0.02)] p-6 md:p-8">
-                    <div className="flex flex-col gap-0">
-                      {dayEvents.map((event, idx) => {
-                        const cat = CATEGORIES[event.categoryId];
-                        const remark = REMARKS[event.remarkId];
-
-                        return (
-                          <div key={event.id} className={`flex flex-col md:flex-row gap-6 md:gap-10 ${idx > 0 ? 'pt-0.5 md:pt-6 mt-8 border-t border-gray-100' : ''}`}>
-                            
-                            {/* DATE BLOCK */}
-                            <div className="flex-shrink-0">
-                              {idx === 0 ? (
-                                <div className="flex items-center justify-between md:block w-full md:w-auto">
-                                  <div className={`w-[80px] h-[80px] md:w-[94px] md:h-[94px] rounded-3xl border-2 ${firstEventTheme.dateBorder} flex flex-col items-center justify-center bg-white shadow-sm flex-shrink-0`}>
-                                    <span className={`text-[11px] md:text-[13px] font-extrabold uppercase tracking-wide ${firstEventTheme.dateMonthText}`}>{eventDate.toLocaleString('default', { month: 'short' })}</span>
-                                    <span className="text-[30px] md:text-[36px] font-black text-[#111827] leading-none mt-0.5">{eventDate.getDate()}</span>
-                                  </div>
-                                  
-                                  {/* FIRST EVENT MOBILE HEADER TAGS */}
-                                  <div className="md:hidden flex flex-row flex-wrap items-center justify-end gap-1.5 ml-4 flex-1">
-                                    <div className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold border ${cat.bg} ${cat.text} ${cat.border} transition-colors whitespace-nowrap max-w-full justify-end`}>
-                                      <span className={`w-1 h-1 rounded-full ${cat.dot} flex-shrink-0`}></span>
-                                      <span className="break-words whitespace-normal text-right">{cat.label}</span>
-                                    </div>
-                                    <div className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold border ${remark.bg} ${remark.text} ${remark.border} transition-colors whitespace-nowrap max-w-full justify-end`}>
-                                      <span className="opacity-70 flex-shrink-0">{remark.short}</span>
-                                      <span className="break-words whitespace-normal text-right">{remark.label}</span>
-                                    </div>
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="hidden md:block w-[94px]"></div>
-                              )}
-                            </div>
-
-                            {/* CONTENT COLUMN */}
-                            <div className="flex-1 min-w-0">
-                              <div className={`flex flex-col md:flex-row items-start justify-between gap-2 md:gap-6`}>
-                                
-                                <div className="min-w-0 flex-1 w-full">
-                                  {/* Title */}
-                                  <h3 className="text-[20px] md:text-[23px] font-black text-[#000000] cursor-pointer leading-tight break-words hover:text-blue-700 transition-colors" onClick={() => setViewingEvent(event)}>
-                                    {event.title}
-                                  </h3>
-                                  
-                                  {/* Metadata Row */}
-                                  <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1.5 text-[14px] md:text-[15px] font-bold text-gray-500 mt-2 md:mt-2.5 bg-transparent border-none p-0 rounded-none">
-                                    {(event.time || event.isTBA) && (
-                                      <div className="flex items-center gap-2 flex-shrink-0 font-black">
-                                        <Clock size={17} strokeWidth={2.5} className="text-gray-400" />
-                                        {event.isTBA ? <span className="text-orange-500">TBA</span> : event.time}
-                                      </div>
-                                    )}
-                                    {event.location && (
-                                      <div className="flex items-start gap-2 min-w-0 flex-1 font-black">
-                                        <MapPin size={17} strokeWidth={2.5} className="text-gray-400 mt-0.5 flex-shrink-0" />
-                                        <span className="leading-snug break-words whitespace-normal">{event.location}</span>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                                
-                                {/* TAGS (Robust mobile alignment: justify-end & max-w) */}
-                                <div className={`flex-shrink-0 w-full md:w-auto mt-3 md:mt-0 gap-1.5 flex flex-col items-end md:items-end ${idx === 0 ? 'hidden md:flex' : 'flex'}`}>
-                                  <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] md:text-[11px] font-bold border ${cat.bg} ${cat.text} ${cat.border} transition-colors whitespace-nowrap max-w-full justify-end`}>
-                                    <span className={`w-1.5 h-1.5 rounded-full ${cat.dot} flex-shrink-0`}></span>
-                                    <span className="break-words whitespace-normal text-right">{cat.label}</span>
-                                  </div>
-                                  <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] md:text-[11px] font-bold border ${remark.bg} ${remark.text} ${remark.border} transition-colors max-w-full justify-end`}>
-                                    <span className="opacity-70 flex-shrink-0">{remark.short}</span>
-                                    <span className="break-words whitespace-normal text-right">{remark.label}</span>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Details (Keyword, Hashtag, Notes) */}
-                              {(event.keywords || event.hashtags || event.notes) && (
-                                <div className="space-y-4 mt-4 md:mt-5">
-                                  <div className="grid grid-cols-1 gap-y-3">
-                                    {event.keywords && (
-                                      <div className="flex items-start gap-3 text-[14px] min-w-0">
-                                        <span className="font-black text-gray-400 uppercase tracking-widest text-[9px] bg-gray-50 px-2 py-1 rounded-md border border-gray-100 flex-shrink-0 mt-0.5">Keyword</span>
-                                        <span className="font-bold text-blue-600/80 break-words flex-1 min-w-0 whitespace-normal">{event.keywords}</span>
-                                      </div>
-                                    )}
-                                    {event.hashtags && (
-                                      <div className="flex items-start gap-3 text-[14px] min-w-0">
-                                        <span className="font-black text-gray-400 uppercase tracking-widest text-[9px] bg-gray-50 px-2 py-1 rounded-md border border-gray-100 flex-shrink-0 mt-0.5">Hashtag</span>
-                                        <span className="font-bold text-blue-600/80 italic break-words flex-1 min-w-0 whitespace-normal">{event.hashtags}</span>
-                                      </div>
-                                    )}
-                                  </div>
-                                  {event.notes && (
-                                    <div className="bg-[#f8fafc] rounded-2xl p-4 flex items-start gap-3 border border-gray-100 overflow-hidden">
-                                      <Info size={18} className="text-gray-400/60 mt-1 flex-shrink-0" strokeWidth={3} />
-                                      <p className="text-[14px] font-medium text-gray-600/90 whitespace-pre-wrap leading-relaxed break-words flex-1 min-w-0">{event.notes}</p>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+              <div className="space-y-6">
+                {upcomingGrouped.length > 0 ? (
+                  renderEventListGroup(upcomingGrouped)
+                ) : isCurrentMonth ? (
+                  /* EMPTY STATE FOR NO MORE CURRENT UPCOMING EVENTS */
+                  <div className="bg-white rounded-[2.5rem] border border-gray-100 p-12 text-center text-gray-400 shadow-sm border-dashed">
+                    <CalendarCheck size={32} className="mx-auto mb-3 opacity-20 text-blue-500" strokeWidth={2.5} />
+                    <p className="text-sm font-black uppercase tracking-[0.15em] text-gray-500">No more upcoming events currently scheduled.</p>
+                    <p className="text-[11px] font-bold mt-1 text-gray-400 uppercase tracking-widest">Stay tuned for updates.</p>
                   </div>
-                );
-              })}
+                ) : null}
+              </div>
+
+              {isCurrentMonth && pastGrouped.length > 0 && (
+                <div className="space-y-6 pt-4">
+                  <button 
+                    onClick={() => setShowPastEvents(!showPastEvents)}
+                    className="w-full flex items-center justify-between p-6 bg-white rounded-[2rem] border border-gray-100 shadow-sm group transition-all"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-400">
+                        <Clock size={18} />
+                      </div>
+                      <span className="font-black uppercase tracking-widest text-xs text-gray-400 group-hover:text-gray-900 transition-colors">
+                        Show Past Events of {MONTHS[currentMonth.getMonth()]} ({pastGrouped.length})
+                      </span>
+                    </div>
+                    {showPastEvents ? <ChevronUp className="text-gray-400" /> : <ChevronDown className="text-gray-400" />}
+                  </button>
+
+                  {showPastEvents && (
+                    <div className="space-y-6 animate-in slide-in-from-top-4 duration-300">
+                      {renderEventListGroup(pastGrouped)}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
       </div>
 
-      {/* QUICK DATE PICKER MODAL */}
       {showDatePicker && (
         <div className="fixed inset-0 bg-[#111827]/40 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
           <div className="bg-white rounded-[2.5rem] shadow-2xl p-8 w-full max-w-md animate-in zoom-in-95 border border-gray-100">
@@ -635,15 +746,11 @@ export default function App() {
               <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">Select Month</h2>
               <button onClick={() => setShowDatePicker(false)} className="text-gray-400 hover:text-gray-800 bg-gray-50 p-2 rounded-full"><X size={20}/></button>
             </div>
-            
-            {/* Year Selection Row */}
             <div className="flex justify-between items-center bg-gray-50 p-4 rounded-2xl mb-6">
               <button onClick={() => setPickerYear(pickerYear - 1)} className="p-2 hover:bg-white rounded-xl transition-colors text-gray-600"><ChevronLeft size={24}/></button>
               <span className="text-2xl font-black text-gray-900 tracking-widest">{pickerYear}</span>
               <button onClick={() => setPickerYear(pickerYear + 1)} className="p-2 hover:bg-white rounded-xl transition-colors text-gray-600"><ChevronRight size={24}/></button>
             </div>
-
-            {/* Month Grid */}
             <div className="grid grid-cols-3 gap-3">
               {MONTHS.map((month, idx) => {
                 const isSelected = currentMonth.getMonth() === idx && currentMonth.getFullYear() === pickerYear;
@@ -658,18 +765,11 @@ export default function App() {
                 );
               })}
             </div>
-            
-            <button 
-              onClick={() => jumpToDate(new Date().getMonth(), new Date().getFullYear())}
-              className="w-full mt-6 py-4 bg-gray-900 text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] hover:bg-black transition-colors"
-            >
-              Go to Today
-            </button>
+            <button onClick={() => jumpToDate(new Date().getMonth(), new Date().getFullYear())} className="w-full mt-6 py-4 bg-gray-900 text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] hover:bg-black transition-colors">Go to Today</button>
           </div>
         </div>
       )}
 
-      {/* Popups & Modals */}
       {showLogin && (
         <div className="fixed inset-0 bg-[#111827]/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md relative animate-in zoom-in-95">
@@ -690,6 +790,7 @@ export default function App() {
         const cat = CATEGORIES[viewingEvent.categoryId];
         const remark = REMARKS[viewingEvent.remarkId];
         const eventDate = new Date(viewingEvent.date);
+        const isPast = viewingEvent.date < todayStr;
         return (
           <div className="fixed inset-0 bg-[#111827]/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh] overflow-hidden relative animate-in zoom-in-95 font-black">
@@ -700,7 +801,7 @@ export default function App() {
                 </div>
                 <button onClick={() => setViewingEvent(null)} className="text-gray-400 hover:text-gray-800 bg-gray-50 p-2 rounded-full transition-colors flex-shrink-0"><X size={20}/></button>
               </div>
-              <div className="flex-1 overflow-y-auto px-8 pb-8 custom-scrollbar">
+              <div className="flex-1 overflow-y-auto px-8 pb-8 custom-scrollbar font-black">
                 <div className="space-y-6 pt-4">
                   <div className="grid grid-cols-1 gap-4 text-[15px] text-gray-600 bg-gray-50/50 p-5 rounded-2xl border border-gray-100 overflow-hidden">
                     <div className="flex items-center gap-3"><CalendarIcon size={18} strokeWidth={2.5} className="text-gray-400 flex-shrink-0" /><span>{eventDate.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span></div>
@@ -748,6 +849,18 @@ export default function App() {
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Notes</p>
                             <p className="text-[14px] font-medium text-gray-600 whitespace-pre-wrap leading-relaxed break-words">{viewingEvent.notes}</p>
                           </div>
+                        </div>
+                      )}
+
+                      {!isPast && (viewingEvent.keywords || viewingEvent.hashtags) && (
+                        <div className="pt-4 flex justify-end">
+                          <button 
+                            onClick={() => handleCopyTrending(viewingEvent)}
+                            className={`flex items-center gap-2 px-6 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-sm border ${copiedId === viewingEvent.id ? 'bg-emerald-500 text-white border-transparent' : 'bg-gray-900 text-white border-transparent hover:bg-gray-800 active:scale-95'}`}
+                          >
+                            {copiedId === viewingEvent.id ? <Check size={18} /> : <Copy size={18} />}
+                            {copiedId === viewingEvent.id ? 'Copied!' : 'Copy for X'}
+                          </button>
                         </div>
                       )}
                     </div>
