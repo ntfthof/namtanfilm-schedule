@@ -479,7 +479,7 @@ export default function App() {
                           {event.title}
                         </h3>
                         
-                        <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1.5 text-[14px] md:text-[15px] font-bold text-gray-500 mt-2 md:mt-2.5 bg-transparent border-none p-0 rounded-none">
+                        <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1.5 text-[14px] md:text-[15px] font-bold text-gray-500 mt-2 md:md:mt-2.5 bg-transparent border-none p-0 rounded-none">
                           {(event.time || event.isTBA) && (
                             <div className="flex items-center gap-2 flex-shrink-0 font-black">
                               <Clock size={17} strokeWidth={2.5} className="text-gray-400" />
@@ -802,14 +802,26 @@ export default function App() {
         const isPast = viewingEvent.date < todayStr;
         return (
           <div className="fixed inset-0 bg-[#111827]/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh] overflow-hidden relative animate-in zoom-in-95 font-black">
-              <div className="px-8 pt-8 pb-4 sticky top-0 bg-white z-20 flex justify-between items-start border-b border-gray-50">
-                <div className="flex items-start gap-3 pr-8">
+            {/* SURGICAL FIX: Removed overflow-hidden from outer to handle browser sync correctly */}
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-w-[95vw] flex flex-col h-auto max-h-[90vh] overflow-hidden relative animate-in zoom-in-95 font-black">
+              
+              {/* REFINED HEADER: Physically separated from scrolling div to prevent "vanishing" glitch */}
+              <div className="px-8 pt-8 pb-4 bg-white border-b border-gray-50 flex justify-between items-start flex-nowrap z-30">
+                <div className="flex items-start gap-3 pr-8 min-w-0 flex-1">
                   <span className={`w-3.5 h-3.5 mt-2 rounded-full ${cat.dot} flex-shrink-0 shadow-sm`}></span>
-                  <h2 className="text-2xl font-black text-[#000000] leading-tight uppercase tracking-tight break-words flex-1 min-w-0">{viewingEvent.title}</h2>
+                  <h2 className="text-2xl font-black text-[#000000] leading-tight uppercase tracking-tight break-words flex-1 min-w-0">
+                    {viewingEvent.title}
+                  </h2>
                 </div>
-                <button onClick={() => setViewingEvent(null)} className="text-gray-400 hover:text-gray-800 bg-gray-50 p-2 rounded-full transition-colors flex-shrink-0"><X size={20}/></button>
+                <button 
+                  onClick={() => setViewingEvent(null)} 
+                  className="text-gray-400 hover:text-gray-800 bg-gray-50 p-2 rounded-full transition-colors flex-shrink-0 ml-2 shadow-sm"
+                >
+                  <X size={20}/>
+                </button>
               </div>
+
+              {/* SCROLLABLE BODY: Only this part moves, ensuring the header never disappears */}
               <div className="flex-1 overflow-y-auto px-8 pb-8 custom-scrollbar font-black">
                 <div className="space-y-6 pt-4">
                   <div className="grid grid-cols-1 gap-4 text-[15px] text-gray-600 bg-gray-50/50 p-5 rounded-2xl border border-gray-100 overflow-hidden">
