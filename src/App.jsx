@@ -274,7 +274,7 @@ export default function App() {
   }, [events, filters, remarkFilters, currentMonth]);
 
   // Grouping logic with Active Archive (Option A)
-  const { upcomingGrouped, pastGrouped, isCurrentMonth, todayStr, pastCount } = useMemo(() => {
+  const { upcomingGrouped, pastGrouped, isCurrentMonth, todayStr, pastCount, upcomingCount } = useMemo(() => {
     const today = new Date();
     const tStr = formatLocalDate(today);
     const selectedYear = currentMonth.getFullYear();
@@ -284,12 +284,14 @@ export default function App() {
     const upcoming = {};
     const past = {};
     let pCount = 0;
+    let uCount = 0;
 
     filteredEvents.forEach(event => {
       if (isCurrent) {
         if (event.date >= tStr) {
           if (!upcoming[event.date]) upcoming[event.date] = [];
           upcoming[event.date].push(event);
+          uCount++;
         } else {
           if (!past[event.date]) past[event.date] = [];
           past[event.date].push(event);
@@ -298,16 +300,17 @@ export default function App() {
       } else {
         if (!upcoming[event.date]) upcoming[event.date] = [];
         upcoming[event.date].push(event);
+        uCount++;
       }
     });
 
     return { 
       upcomingGrouped: Object.entries(upcoming).sort((a, b) => a[0].localeCompare(b[0])), 
-      // Changed sort to a[0].localeCompare(b[0]) for chronological order (1st, 2nd, 3rd...)
       pastGrouped: Object.entries(past).sort((a, b) => a[0].localeCompare(b[0])),
       isCurrentMonth: isCurrent,
       todayStr: tStr,
-      pastCount: pCount
+      pastCount: pCount,
+      upcomingCount: uCount
     };
   }, [filteredEvents, currentMonth]);
 
@@ -697,7 +700,9 @@ export default function App() {
               {/* CURRENT MONTH SUB-HEADER */}
               {isCurrentMonth && (
                 <div className="px-2 -mb-2">
-                  <span className="font-black uppercase tracking-[0.2em] text-[11px] text-blue-600/60 bg-blue-50/50 px-3 py-1.5 rounded-lg border border-blue-100">Upcoming Events</span>
+                  <span className="font-black uppercase tracking-[0.2em] text-[11px] text-blue-600/60 bg-blue-50/50 px-3 py-1.5 rounded-lg border border-blue-100">
+                    Upcoming Events ({upcomingCount})
+                  </span>
                 </div>
               )}
 
