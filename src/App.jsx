@@ -303,7 +303,8 @@ export default function App() {
 
     return { 
       upcomingGrouped: Object.entries(upcoming).sort((a, b) => a[0].localeCompare(b[0])), 
-      pastGrouped: Object.entries(past).sort((a, b) => b[0].localeCompare(a[0])),
+      // Changed sort to a[0].localeCompare(b[0]) for chronological order (1st, 2nd, 3rd...)
+      pastGrouped: Object.entries(past).sort((a, b) => a[0].localeCompare(b[0])),
       isCurrentMonth: isCurrent,
       todayStr: tStr,
       pastCount: pCount
