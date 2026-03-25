@@ -274,7 +274,7 @@ export default function App() {
   }, [events, filters, remarkFilters, currentMonth]);
 
   // Grouping logic with Active Archive (Option A)
-  const { upcomingGrouped, pastGrouped, isCurrentMonth, todayStr } = useMemo(() => {
+  const { upcomingGrouped, pastGrouped, isCurrentMonth, todayStr, pastCount } = useMemo(() => {
     const today = new Date();
     const tStr = formatLocalDate(today);
     const selectedYear = currentMonth.getFullYear();
@@ -283,6 +283,7 @@ export default function App() {
 
     const upcoming = {};
     const past = {};
+    let pCount = 0;
 
     filteredEvents.forEach(event => {
       if (isCurrent) {
@@ -292,6 +293,7 @@ export default function App() {
         } else {
           if (!past[event.date]) past[event.date] = [];
           past[event.date].push(event);
+          pCount++;
         }
       } else {
         if (!upcoming[event.date]) upcoming[event.date] = [];
@@ -303,7 +305,8 @@ export default function App() {
       upcomingGrouped: Object.entries(upcoming).sort((a, b) => a[0].localeCompare(b[0])), 
       pastGrouped: Object.entries(past).sort((a, b) => b[0].localeCompare(a[0])),
       isCurrentMonth: isCurrent,
-      todayStr: tStr
+      todayStr: tStr,
+      pastCount: pCount
     };
   }, [filteredEvents, currentMonth]);
 
@@ -721,7 +724,7 @@ export default function App() {
                         <Clock size={18} />
                       </div>
                       <span className="font-black uppercase tracking-widest text-xs text-gray-400 group-hover:text-gray-900 transition-colors">
-                        Show Past Events of {MONTHS[currentMonth.getMonth()]} ({pastGrouped.length})
+                        Show Past Events of {MONTHS[currentMonth.getMonth()]} ({pastCount})
                       </span>
                     </div>
                     {showPastEvents ? <ChevronUp className="text-gray-400" /> : <ChevronDown className="text-gray-400" />}
