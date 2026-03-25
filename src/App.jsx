@@ -434,7 +434,10 @@ export default function App() {
 
   const renderEventListGroup = (groupedData) => {
     return groupedData.map(([date, dayEvents]) => {
-      const eventDate = new Date(date);
+      // LITERAL DATE FIX: Split the string and create a local date to avoid timezone shifts
+      const [y, m, d] = date.split('-').map(Number);
+      const eventDate = new Date(y, m - 1, d);
+      
       const firstEventTheme = CATEGORIES[dayEvents[0].categoryId];
       const isPast = date < todayStr;
 
@@ -479,7 +482,7 @@ export default function App() {
                           {event.title}
                         </h3>
                         
-                        <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1.5 text-[14px] md:text-[15px] font-bold text-gray-500 mt-2 md:md:mt-2.5 bg-transparent border-none p-0 rounded-none">
+                        <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1.5 text-[14px] md:text-[15px] font-bold text-gray-500 mt-2 md:mt-2.5 bg-transparent border-none p-0 rounded-none">
                           {(event.time || event.isTBA) && (
                             <div className="flex items-center gap-2 flex-shrink-0 font-black">
                               <Clock size={17} strokeWidth={2.5} className="text-gray-400" />
@@ -798,14 +801,15 @@ export default function App() {
       {viewingEvent && (() => {
         const cat = CATEGORIES[viewingEvent.categoryId];
         const remark = REMARKS[viewingEvent.remarkId];
-        const eventDate = new Date(viewingEvent.date);
+        
+        // LITERAL DATE FIX: Force the date to remain fixed regardless of user's timezone
+        const [y, m, d] = viewingEvent.date.split('-').map(Number);
+        const eventDate = new Date(y, m - 1, d);
+        
         const isPast = viewingEvent.date < todayStr;
         return (
           <div className="fixed inset-0 bg-[#111827]/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            {/* SURGICAL FIX: Removed overflow-hidden from outer to handle browser sync correctly */}
             <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-w-[95vw] flex flex-col h-auto max-h-[90vh] overflow-hidden relative animate-in zoom-in-95 font-black">
-              
-              {/* REFINED HEADER: Physically separated from scrolling div to prevent "vanishing" glitch */}
               <div className="px-8 pt-8 pb-4 bg-white border-b border-gray-50 flex justify-between items-start flex-nowrap z-30">
                 <div className="flex items-start gap-3 pr-8 min-w-0 flex-1">
                   <span className={`w-3.5 h-3.5 mt-2 rounded-full ${cat.dot} flex-shrink-0 shadow-sm`}></span>
@@ -821,7 +825,6 @@ export default function App() {
                 </button>
               </div>
 
-              {/* SCROLLABLE BODY: Only this part moves, ensuring the header never disappears */}
               <div className="flex-1 overflow-y-auto px-8 pb-8 custom-scrollbar font-black">
                 <div className="space-y-6 pt-4">
                   <div className="grid grid-cols-1 gap-4 text-[15px] text-gray-600 bg-gray-50/50 p-5 rounded-2xl border border-gray-100 overflow-hidden">
