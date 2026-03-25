@@ -10,13 +10,13 @@ import {
   Unlock, 
   X, 
   ChevronLeft, 
-  ChevronRight, 
-  ChevronDown, 
-  ChevronUp, 
-  Info, 
-  Filter, 
-  Hash, 
-  Tag 
+  ChevronRight,
+  ChevronDown,
+  ChevronUp,
+  Info,
+  Filter,
+  Hash,
+  Tag
 } from 'lucide-react';
 
 // Firebase Imports
@@ -162,6 +162,11 @@ const REMARKS = {
   }
 };
 
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
+
 export default function App() {
   const [events, setEvents] = useState([]);
   const [user, setUser] = useState(null);
@@ -171,6 +176,10 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [isLegendOpen, setIsLegendOpen] = useState(false); 
   
+  // Quick Date Jump State
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [pickerYear, setPickerYear] = useState(new Date().getFullYear());
+
   const [filters, setFilters] = useState(
     Object.keys(CATEGORIES).reduce((acc, key) => ({...acc, [key]: true}), {})
   );
@@ -233,13 +242,13 @@ export default function App() {
   };
 
   const filteredEvents = useMemo(() => {
-    const currentYear = currentMonth.getFullYear();
-    const currentMonthIndex = currentMonth.getMonth();
+    const year = currentMonth.getFullYear();
+    const monthIndex = currentMonth.getMonth();
 
     return events
       .filter(event => {
-        const [year, month] = event.date.split('-').map(Number);
-        const matchesMonth = year === currentYear && (month - 1) === currentMonthIndex;
+        const [eYear, eMonth] = event.date.split('-').map(Number);
+        const matchesMonth = eYear === year && (eMonth - 1) === monthIndex;
         return filters[event.categoryId] && remarkFilters[event.remarkId] && matchesMonth;
       })
       .sort((a, b) => {
@@ -333,6 +342,11 @@ export default function App() {
   const nextMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
   const prevMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
   
+  const jumpToDate = (monthIdx, year) => {
+    setCurrentMonth(new Date(year, monthIdx, 1));
+    setShowDatePicker(false);
+  };
+
   const calendarDays = useMemo(() => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
@@ -428,9 +442,24 @@ export default function App() {
         <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-[0_2px_20px_rgb(0,0,0,0.02)] p-6 md:p-8">
           <div className="flex justify-between items-center mb-6 px-2">
             <button onClick={prevMonth} className="w-12 h-12 flex items-center justify-center rounded-2xl border border-gray-100 hover:bg-gray-50 transition-colors text-gray-800 shadow-sm"><ChevronLeft size={24} strokeWidth={2.5}/></button>
-            <h2 className="text-2xl md:text-[26px] font-black text-[#111827] tracking-tight uppercase">{currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}</h2>
+            
+            {/* Quick Date Jump Header */}
+            <button 
+              onClick={() => {
+                setPickerYear(currentMonth.getFullYear());
+                setShowDatePicker(true);
+              }}
+              className="group flex items-center gap-2 px-4 py-2 rounded-2xl hover:bg-gray-50 transition-all"
+            >
+              <h2 className="text-2xl md:text-[26px] font-black text-[#111827] tracking-tight uppercase group-hover:text-blue-600">
+                {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
+              </h2>
+              <ChevronDown size={20} className="text-gray-400 group-hover:text-blue-600 group-hover:translate-y-0.5 transition-all" />
+            </button>
+
             <button onClick={nextMonth} className="w-12 h-12 flex items-center justify-center rounded-2xl border border-gray-100 hover:bg-gray-50 transition-colors text-gray-800 shadow-sm"><ChevronRight size={24} strokeWidth={2.5}/></button>
           </div>
+          
           <div className="border border-gray-100 rounded-2xl overflow-hidden mt-4">
             <div className="grid grid-cols-7 bg-gray-100 gap-[1px]">
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
@@ -534,7 +563,6 @@ export default function App() {
                                   <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1.5 text-[14px] md:text-[15px] font-bold text-gray-500 mt-2 md:mt-2.5 bg-transparent border-none p-0 rounded-none">
                                     {(event.time || event.isTBA) && (
                                       <div className="flex items-center gap-2 flex-shrink-0 font-black">
-                                        {/* Show Clock icon for both TBA and specific time */}
                                         <Clock size={17} strokeWidth={2.5} className="text-gray-400" />
                                         {event.isTBA ? <span className="text-orange-500">TBA</span> : event.time}
                                       </div>
@@ -599,6 +627,48 @@ export default function App() {
         </div>
       </div>
 
+      {/* QUICK DATE PICKER MODAL */}
+      {showDatePicker && (
+        <div className="fixed inset-0 bg-[#111827]/40 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-[2.5rem] shadow-2xl p-8 w-full max-w-md animate-in zoom-in-95 border border-gray-100">
+            <div className="flex justify-between items-center mb-8">
+              <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">Select Month</h2>
+              <button onClick={() => setShowDatePicker(false)} className="text-gray-400 hover:text-gray-800 bg-gray-50 p-2 rounded-full"><X size={20}/></button>
+            </div>
+            
+            {/* Year Selection Row */}
+            <div className="flex justify-between items-center bg-gray-50 p-4 rounded-2xl mb-6">
+              <button onClick={() => setPickerYear(pickerYear - 1)} className="p-2 hover:bg-white rounded-xl transition-colors text-gray-600"><ChevronLeft size={24}/></button>
+              <span className="text-2xl font-black text-gray-900 tracking-widest">{pickerYear}</span>
+              <button onClick={() => setPickerYear(pickerYear + 1)} className="p-2 hover:bg-white rounded-xl transition-colors text-gray-600"><ChevronRight size={24}/></button>
+            </div>
+
+            {/* Month Grid */}
+            <div className="grid grid-cols-3 gap-3">
+              {MONTHS.map((month, idx) => {
+                const isSelected = currentMonth.getMonth() === idx && currentMonth.getFullYear() === pickerYear;
+                return (
+                  <button 
+                    key={month}
+                    onClick={() => jumpToDate(idx, pickerYear)}
+                    className={`py-3.5 rounded-2xl text-[13px] font-black uppercase tracking-wider transition-all border ${isSelected ? 'bg-blue-600 text-white border-transparent shadow-md' : 'bg-white text-gray-500 border-gray-100 hover:border-blue-200 hover:text-blue-600'}`}
+                  >
+                    {month.substring(0, 3)}
+                  </button>
+                );
+              })}
+            </div>
+            
+            <button 
+              onClick={() => jumpToDate(new Date().getMonth(), new Date().getFullYear())}
+              className="w-full mt-6 py-4 bg-gray-900 text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] hover:bg-black transition-colors"
+            >
+              Go to Today
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Popups & Modals */}
       {showLogin && (
         <div className="fixed inset-0 bg-[#111827]/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -634,7 +704,6 @@ export default function App() {
                 <div className="space-y-6 pt-4">
                   <div className="grid grid-cols-1 gap-4 text-[15px] text-gray-600 bg-gray-50/50 p-5 rounded-2xl border border-gray-100 overflow-hidden">
                     <div className="flex items-center gap-3"><CalendarIcon size={18} strokeWidth={2.5} className="text-gray-400 flex-shrink-0" /><span>{eventDate.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span></div>
-                    {/* Consistent icon behavior in modal: Show Clock if TBA or Time exists */}
                     {(viewingEvent.time || viewingEvent.isTBA) && (
                       <div className="flex items-center gap-3">
                         <Clock size={18} strokeWidth={2.5} className="text-gray-400 flex-shrink-0" />
