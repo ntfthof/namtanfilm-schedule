@@ -686,7 +686,7 @@ export default function App() {
                   <div 
                     key={event.id} 
                     onClick={() => setViewingEvent(event)}
-                    className="flex-shrink-0 w-[85vw] sm:w-[320px] snap-center bg-white rounded-[2rem] p-6 border border-gray-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)] cursor-pointer hover:border-blue-300 hover:shadow-md transition-all flex flex-col gap-4"
+                    className={`flex-shrink-0 ${todaysEvents.length === 1 ? 'w-full' : 'w-[85vw] sm:w-[320px]'} snap-center bg-white rounded-[2rem] p-6 border border-gray-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)] cursor-pointer hover:border-blue-300 hover:shadow-md transition-all flex flex-col gap-4`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -897,30 +897,30 @@ export default function App() {
                     <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center font-black text-[16px] shadow-md flex-shrink-0">
                        WK {selectedWeekIdx + 1}
                     </div>
-                    <div className="flex flex-col">
-                       <div className="flex items-center gap-2 mb-0.5">
-                         <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">
-                           Focus Mode : Week View
+                    <div className="flex flex-col flex-1 min-w-0">
+                       <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-0.5">
+                         Focus Mode : Week View
+                       </span>
+                       <div className="flex items-center gap-3 flex-wrap mt-0.5">
+                         <span className="text-[14px] sm:text-[16px] font-black text-blue-900 tracking-tight">
+                            {(() => {
+                              const weekDates = calendarWeeks[selectedWeekIdx].filter(d => d);
+                              if (weekDates.length === 0) return '';
+                              const start = weekDates[0];
+                              const end = weekDates[weekDates.length - 1];
+                              return `${start.getDate()} ${start.toLocaleString('default', { month: 'short' })} - ${end.getDate()} ${end.toLocaleString('default', { month: 'short' })}`;
+                            })()}
                          </span>
                          {(() => {
                             const targetDates = calendarWeeks[selectedWeekIdx].filter(d => d).map(formatLocalDate);
                             const count = filteredEvents.filter(e => targetDates.includes(e.date)).length;
                             return (
-                              <span className="bg-blue-100 text-blue-600 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest">
+                              <span className="bg-blue-100 text-blue-600 px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest shadow-sm">
                                 {count} Event{count !== 1 ? 's' : ''}
                               </span>
                             );
                          })()}
                        </div>
-                       <span className="text-[14px] sm:text-[16px] font-black text-blue-900 tracking-tight">
-                          {(() => {
-                            const weekDates = calendarWeeks[selectedWeekIdx].filter(d => d);
-                            if (weekDates.length === 0) return '';
-                            const start = weekDates[0];
-                            const end = weekDates[weekDates.length - 1];
-                            return `${start.getDate()} ${start.toLocaleString('default', { month: 'short' })} - ${end.getDate()} ${end.toLocaleString('default', { month: 'short' })}`;
-                          })()}
-                       </span>
                     </div>
                  </div>
               </div>
