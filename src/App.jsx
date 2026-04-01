@@ -19,7 +19,8 @@ import {
   Tag, 
   Copy, 
   Check, 
-  CalendarCheck 
+  CalendarCheck,
+  Coffee
 } from 'lucide-react';
 
 // Firebase Imports
@@ -256,6 +257,15 @@ export default function App() {
     return `${year}-${month}-${day}`;
   };
 
+  const todayStr = useMemo(() => formatLocalDate(new Date()), []);
+
+  // ALWAYS VISIBLE TODAY EVENTS
+  const todaysEvents = useMemo(() => {
+    return events
+      .filter(e => e.date === todayStr && filters[e.categoryId] && remarkFilters[e.remarkId])
+      .sort(sortEventsByTime);
+  }, [events, todayStr, filters, remarkFilters]);
+
   const filteredEvents = useMemo(() => {
     const year = currentMonth.getFullYear();
     const monthIndex = currentMonth.getMonth();
@@ -273,8 +283,8 @@ export default function App() {
       });
   }, [events, filters, remarkFilters, currentMonth]);
 
-  // Grouping logic with Active Archive (Option A)
-  const { upcomingGrouped, pastGrouped, isCurrentMonth, todayStr, pastCount, upcomingCount } = useMemo(() => {
+  // Grouping logic with Active Archive
+  const { upcomingGrouped, pastGrouped, isCurrentMonth, pastCount, upcomingCount } = useMemo(() => {
     const today = new Date();
     const tStr = formatLocalDate(today);
     const selectedYear = currentMonth.getFullYear();
@@ -308,7 +318,6 @@ export default function App() {
       upcomingGrouped: Object.entries(upcoming).sort((a, b) => a[0].localeCompare(b[0])), 
       pastGrouped: Object.entries(past).sort((a, b) => a[0].localeCompare(b[0])),
       isCurrentMonth: isCurrent,
-      todayStr: tStr,
       pastCount: pCount,
       upcomingCount: uCount
     };
@@ -406,8 +415,13 @@ export default function App() {
     }
   };
 
-  const nextMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
-  const prevMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+  const nextMonth = () => { 
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1)); 
+  };
+  
+  const prevMonth = () => { 
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1)); 
+  };
   
   const jumpToDate = (monthIdx, year) => {
     setCurrentMonth(new Date(year, monthIdx, 1));
@@ -559,9 +573,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#f8f9fc] text-[#111827] font-sans pb-24 selection:bg-blue-100 selection:text-blue-900">
-      <div className="w-full max-w-[1920px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 pt-10 pb-16 space-y-8">
+      <div className="w-full max-w-[1920px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 pt-6 pb-16 flex flex-col gap-5 md:gap-7">
         
-        <header className="flex flex-col sm:flex-row justify-between items-center mb-10 gap-6 font-black uppercase tracking-tight">
+        <header className="flex flex-col sm:flex-row justify-between items-center gap-4 md:gap-6 font-black uppercase tracking-tight">
           <div className="flex items-center gap-5">
             <div className="w-14 h-14 bg-[#dbeafe] text-[#3b82f6] rounded-2xl flex items-center justify-center shadow-sm">
               <CalendarIcon size={28} strokeWidth={2.5} />
@@ -631,6 +645,110 @@ export default function App() {
           </div>
         )}
 
+        {/* --- HAPPENING TODAY SECTION (HORIZONTAL SWIPE) --- */}
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-3 px-2">
+            {todaysEvents.length > 0 ? (
+              <>
+                <span className="relative flex h-3 w-3 mt-[-2px]">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                </span>
+                <h2 className="text-[16px] md:text-lg font-black tracking-widest uppercase text-gray-900">Happening Today</h2>
+                <span className="text-[10px] font-black text-gray-500 bg-gray-100 border border-gray-200 px-2 py-1 rounded-md uppercase tracking-widest ml-2">{todaysEvents.length} Event{todaysEvents.length !== 1 ? 's' : ''}</span>
+              </>
+            ) : (
+              <>
+                <Coffee size={18} className="text-gray-400" strokeWidth={2.5}/>
+                <h2 className="text-[15px] md:text-[16px] font-black tracking-widest uppercase text-gray-500">Happening Today</h2>
+              </>
+            )}
+          </div>
+
+          {todaysEvents.length > 0 ? (
+            <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 px-2 custom-scrollbar">
+              {todaysEvents.map(event => {
+                const cat = CATEGORIES[event.categoryId];
+                return (
+                  <div 
+                    key={event.id} 
+                    onClick={() => setViewingEvent(event)}
+                    className="flex-shrink-0 w-[85vw] sm:w-[320px] snap-center bg-white rounded-[2rem] p-6 border border-gray-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)] cursor-pointer hover:border-blue-300 hover:shadow-md transition-all flex flex-col gap-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold border ${cat.bg} ${cat.text} ${cat.border}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${cat.dot}`}></span>
+                        {cat.label}
+                      </div>
+                      <span className="text-[11px] font-black text-gray-400 flex items-center gap-1.5 uppercase tracking-widest flex-shrink-0 ml-2">
+                        <Clock size={13} strokeWidth={3}/> {event.isTBA ? 'TBA' : event.time}
+                      </span>
+                    </div>
+                    
+                    <h3 className="text-[17px] font-black text-gray-900 leading-snug line-clamp-2">{event.title}</h3>
+                    
+                    {/* NEW SECTION: Location and Truncated Tags grouped together at bottom */}
+                    <div className="mt-auto flex flex-col gap-3 pt-4 border-t border-gray-50">
+                      {event.location && (
+                        <div className="flex items-start gap-2 text-[12px] font-bold text-gray-500">
+                          <MapPin size={15} className="text-gray-400 flex-shrink-0 mt-0.5" strokeWidth={2.5} />
+                          <span className="truncate">{event.location}</span>
+                        </div>
+                      )}
+                      
+                      {(event.keywords || event.hashtags) && (
+                        <div className="flex flex-col gap-2.5 mt-1">
+                          {event.keywords && (
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Tag size={14} className="text-gray-400 flex-shrink-0" strokeWidth={2.5} />
+                              <span className="text-[11px] font-bold text-blue-600/80 truncate">
+                                {event.keywords}
+                              </span>
+                            </div>
+                          )}
+                          {event.hashtags && (
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Hash size={14} className="text-gray-400 flex-shrink-0" strokeWidth={2.5} />
+                              <span className="text-[11px] font-bold text-blue-600/80 truncate">
+                                {event.hashtags}
+                              </span>
+                            </div>
+                          )}
+                          <button 
+                            onClick={(e) => { 
+                              e.stopPropagation(); // Prevents the card from opening when copying
+                              handleCopyTrending(event); 
+                            }}
+                            className={`w-full flex items-center justify-center gap-2 px-3 py-2.5 mt-1 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${copiedId === event.id ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-gray-50 text-gray-500 hover:bg-gray-100 border border-gray-100'}`}
+                            title="Copy full trending tags"
+                          >
+                            {copiedId === event.id ? <Check size={14} strokeWidth={3} /> : <Copy size={14} strokeWidth={3} />}
+                            {copiedId === event.id ? 'Copied to Clipboard' : 'Copy Trending Tags'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="px-2">
+              <div className="bg-white rounded-[2rem] border border-gray-100 p-6 flex items-center gap-4 shadow-sm opacity-70">
+                <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-400">
+                  <CalendarIcon size={18} strokeWidth={2.5} />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[14px] font-black text-gray-900 tracking-tight">No Official Schedule</span>
+                  <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Take a break and rest! 🤍❤️‍🩹</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+        {/* --- END HAPPENING TODAY --- */}
+
         <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-[0_2px_20px_rgb(0,0,0,0.02)] p-6 md:p-8">
           <div className="flex justify-between items-center mb-6 px-2">
             <button onClick={prevMonth} className="w-12 h-12 flex items-center justify-center rounded-2xl border border-gray-100 hover:bg-gray-50 transition-colors text-gray-800 shadow-sm"><ChevronLeft size={24} strokeWidth={2.5}/></button>
@@ -686,7 +804,7 @@ export default function App() {
           </div>
         </div>
 
-        <div className="pt-4">
+        <div>
           <div className="flex justify-between items-baseline mb-6 px-2">
             <h2 className="text-[20px] font-black tracking-[0.15em] uppercase text-[#111827]">
               Monthly Schedule List
