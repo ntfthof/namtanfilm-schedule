@@ -184,8 +184,9 @@ export default function App() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [pickerYear, setPickerYear] = useState(new Date().getFullYear());
   
-  // Active Archive State
+  // Active Archive & Week View State
   const [showPastEvents, setShowPastEvents] = useState(false);
+  const [selectedWeekIdx, setSelectedWeekIdx] = useState(null); // Option A Week View state
   const [copiedId, setCopiedId] = useState(null);
 
   const [filters, setFilters] = useState(
@@ -417,16 +418,19 @@ export default function App() {
 
   const nextMonth = () => { 
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1)); 
+    setSelectedWeekIdx(null); // Reset week view
   };
   
   const prevMonth = () => { 
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1)); 
+    setSelectedWeekIdx(null); // Reset week view
   };
   
   const jumpToDate = (monthIdx, year) => {
     setCurrentMonth(new Date(year, monthIdx, 1));
     setShowDatePicker(false);
     setShowPastEvents(false); 
+    setSelectedWeekIdx(null); // Reset week view
   };
 
   const calendarDays = useMemo(() => {
@@ -439,6 +443,15 @@ export default function App() {
     for (let i = 1; i <= daysInMonth; i++) days.push(new Date(year, month, i));
     return days;
   }, [currentMonth]);
+
+  // Option A: Split calendar days into 7-day week chunks for the filter pills
+  const calendarWeeks = useMemo(() => {
+    const wks = [];
+    for (let i = 0; i < calendarDays.length; i += 7) {
+      wks.push(calendarDays.slice(i, i + 7));
+    }
+    return wks;
+  }, [calendarDays]);
 
   const getEventsForDay = (date) => {
     if (!date) return [];
@@ -772,32 +785,43 @@ export default function App() {
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
                 <div key={day} className="py-4 bg-white text-center text-[11px] sm:text-[12px] font-bold text-gray-500 uppercase tracking-widest">{day}</div>
               ))}
-              {calendarDays.map((date, i) => {
-                const dayEvents = getEventsForDay(date);
-                const isToday = date && date.toDateString() === new Date().toDateString();
+              {calendarWeeks.map((week, wIdx) => {
+                if (selectedWeekIdx !== null && selectedWeekIdx !== wIdx) return null;
+                
                 return (
-                  <div key={i} className={`min-h-[140px] md:min-h-[160px] lg:min-h-[200px] p-2 transition-colors flex flex-col ${!date ? 'bg-white' : isToday ? 'bg-[#fffbeb]' : 'bg-white'} ${date && isAdmin ? 'hover:bg-gray-50 cursor-pointer' : ''}`} onClick={() => { if(date && isAdmin) openAddModal(formatLocalDate(date)) }}>
-                    {date && (
-                      <div className="flex flex-col h-full">
-                        <div className="mb-2 flex justify-start"><span className={`text-[12px] sm:text-[13px] font-bold flex items-center justify-center px-2 py-0.5 rounded-lg min-w-[28px] ${isToday ? 'bg-[#60a5fa] text-white shadow-sm' : 'text-gray-400'}`}>{date.getDate()}</span></div>
-                        <div className="space-y-1.5 flex-1">
-                          {dayEvents.map(event => {
-                            const cat = CATEGORIES[event.categoryId];
-                            const remark = REMARKS[event.remarkId];
-                            return (
-                              <div key={event.id} onClick={(e) => { e.stopPropagation(); setViewingEvent(event); }} className={`px-1.5 py-1 rounded-md border ${cat.dateBorder} ${cat.bg} ${cat.text} cursor-pointer hover:shadow-sm transition-all flex flex-col w-full overflow-hidden`}>
-                                <div className="font-bold text-[10px] sm:text-[11px] truncate leading-tight w-full">
-                                  {remark && remark.id !== 'none' && <span className={`font-black mr-1 ${remark.text}`}>{remark.short}</span>}
-                                  {event.title}
-                                </div>
-                                <div className="flex justify-between items-center w-full text-[9px] sm:text-[10px] font-semibold opacity-80 mt-[2px]"><span className="flex-shrink-0 whitespace-nowrap">{event.isTBA ? 'TBA' : event.time}</span><span className="truncate ml-2 text-right uppercase tracking-tight">{event.location || ''}</span></div>
+                  <React.Fragment key={wIdx}>
+                    {week.map((date, dIdx) => {
+                      const i = wIdx * 7 + dIdx;
+                      const dayEvents = getEventsForDay(date);
+                      const isToday = date && date.toDateString() === new Date().toDateString();
+                      const isSelectedWeek = selectedWeekIdx === wIdx;
+
+                      return (
+                        <div key={i} className={`min-h-[140px] md:min-h-[160px] lg:min-h-[200px] p-2 transition-colors flex flex-col ${!date ? 'bg-white' : isSelectedWeek ? 'bg-blue-50/30 ring-1 ring-blue-100 ring-inset' : isToday ? 'bg-[#fffbeb]' : 'bg-white'} ${date && isAdmin ? 'hover:bg-gray-50 cursor-pointer' : ''}`} onClick={() => { if(date && isAdmin) openAddModal(formatLocalDate(date)) }}>
+                          {date && (
+                            <div className="flex flex-col h-full">
+                              <div className="mb-2 flex justify-start"><span className={`text-[12px] sm:text-[13px] font-bold flex items-center justify-center px-2 py-0.5 rounded-lg min-w-[28px] ${isSelectedWeek ? 'bg-blue-500 text-white shadow-sm' : isToday ? 'bg-[#60a5fa] text-white shadow-sm' : 'text-gray-400'}`}>{date.getDate()}</span></div>
+                              <div className="space-y-1.5 flex-1">
+                                {dayEvents.map(event => {
+                                  const cat = CATEGORIES[event.categoryId];
+                                  const remark = REMARKS[event.remarkId];
+                                  return (
+                                    <div key={event.id} onClick={(e) => { e.stopPropagation(); setViewingEvent(event); }} className={`px-1.5 py-1 rounded-md border ${cat.dateBorder} ${cat.bg} ${cat.text} cursor-pointer hover:shadow-sm transition-all flex flex-col w-full overflow-hidden`}>
+                                      <div className="font-bold text-[10px] sm:text-[11px] truncate leading-tight w-full">
+                                        {remark && remark.id !== 'none' && <span className={`font-black mr-1 ${remark.text}`}>{remark.short}</span>}
+                                        {event.title}
+                                      </div>
+                                      <div className="flex justify-between items-center w-full text-[9px] sm:text-[10px] font-semibold opacity-80 mt-[2px]"><span className="flex-shrink-0 whitespace-nowrap">{event.isTBA ? 'TBA' : event.time}</span><span className="truncate ml-2 text-right uppercase tracking-tight">{event.location || ''}</span></div>
+                                    </div>
+                                  );
+                                })}
                               </div>
-                            );
-                          })}
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    )}
-                  </div>
+                      );
+                    })}
+                  </React.Fragment>
                 );
               })}
             </div>
@@ -805,18 +829,101 @@ export default function App() {
         </div>
 
         <div>
-          <div className="flex justify-between items-baseline mb-6 px-2">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 px-2 gap-4">
             <h2 className="text-[20px] font-black tracking-[0.15em] uppercase text-[#111827]">
               Monthly Schedule List
             </h2>
-            <span className="text-[15px] font-bold text-gray-400">{filteredEvents.length} Events Total</span>
+            <span className="text-[15px] font-bold text-gray-400 flex-shrink-0">{filteredEvents.length} Events Total</span>
+          </div>
+
+          {/* --- WEEK FILTER PILLS --- */}
+          <div className="flex overflow-x-auto gap-2 pb-4 mb-2 custom-scrollbar px-2">
+            <button 
+              onClick={() => setSelectedWeekIdx(null)}
+              className={`flex-shrink-0 px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${selectedWeekIdx === null ? 'bg-gray-900 text-white shadow-sm' : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'}`}
+            >
+              ALL
+            </button>
+            {calendarWeeks.map((week, idx) => {
+              const validDays = week.filter(d => d !== null);
+              if (validDays.length === 0) return null; // skip empty weeks at start/end of month
+              return (
+                <button 
+                  key={idx}
+                  onClick={() => setSelectedWeekIdx(idx)}
+                  className={`flex-shrink-0 px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${selectedWeekIdx === idx ? 'bg-blue-600 text-white shadow-sm border border-transparent' : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'}`}
+                >
+                  WK {idx + 1}
+                </button>
+              );
+            })}
           </div>
 
           {filteredEvents.length === 0 ? (
             <div className="bg-white rounded-[2.5rem] border border-gray-100 p-16 text-center text-gray-400 shadow-[0_2px_20px_rgb(0,0,0,0.02)]">
               <CalendarIcon size={48} className="mx-auto mb-4 opacity-20" /><p className="text-lg font-bold">No events scheduled for this month.</p>
             </div>
+          ) : selectedWeekIdx !== null ? (
+            /* --- FOCUS MODE: SPECIFIC WEEK VIEW --- */
+            <div className="space-y-6 animate-in slide-in-from-top-4 duration-300">
+              <div className="relative flex items-center bg-blue-50 border border-blue-100 p-5 sm:p-6 rounded-[2rem] shadow-sm">
+                 <button 
+                    onClick={() => setSelectedWeekIdx(null)} 
+                    className="absolute top-4 right-4 sm:top-5 sm:right-5 text-blue-400 hover:text-blue-700 bg-white hover:bg-blue-100 p-1.5 sm:p-2 rounded-full transition-all shadow-sm border border-blue-100 active:scale-95"
+                    title="Close Focus Mode"
+                 >
+                    <X size={16} strokeWidth={3} />
+                 </button>
+                 <div className="flex items-center gap-4 pr-8 sm:pr-12">
+                    <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center font-black text-[16px] shadow-md flex-shrink-0">
+                       WK {selectedWeekIdx + 1}
+                    </div>
+                    <div className="flex flex-col">
+                       <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-0.5">
+                         Focus Mode : Week View
+                       </span>
+                       <span className="text-[14px] sm:text-[16px] font-black text-blue-900 tracking-tight">
+                          {(() => {
+                            const weekDates = calendarWeeks[selectedWeekIdx].filter(d => d);
+                            if (weekDates.length === 0) return '';
+                            const start = weekDates[0];
+                            const end = weekDates[weekDates.length - 1];
+                            return `${start.getDate()} ${start.toLocaleString('default', { month: 'short' })} - ${end.getDate()} ${end.toLocaleString('default', { month: 'short' })}`;
+                          })()}
+                       </span>
+                    </div>
+                 </div>
+              </div>
+
+              {(() => {
+                 const targetDates = calendarWeeks[selectedWeekIdx].filter(d => d).map(formatLocalDate);
+                 const viewEvents = filteredEvents.filter(e => targetDates.includes(e.date));
+                 
+                 if (viewEvents.length === 0) {
+                    return (
+                       <div className="bg-white rounded-[2.5rem] border border-gray-100 p-12 text-center text-gray-400 shadow-sm border-dashed">
+                          <CalendarIcon size={32} className="mx-auto mb-3 opacity-20 text-blue-500" strokeWidth={2.5} />
+                          <p className="text-sm font-black uppercase tracking-[0.15em] text-gray-500">
+                            No events scheduled in this week.
+                          </p>
+                          <p className="text-[11px] font-bold mt-1 text-gray-400 uppercase tracking-widest">Select another week or show full month.</p>
+                       </div>
+                    );
+                 }
+                 
+                 // Group the filtered events by date so we can reuse the render logic cleanly
+                 const viewGrouped = {};
+                 viewEvents.forEach(e => {
+                   if (!viewGrouped[e.date]) viewGrouped[e.date] = [];
+                   viewGrouped[e.date].push(e);
+                 });
+                 const sortedViewGrouped = Object.entries(viewGrouped).sort((a, b) => a[0].localeCompare(b[0]));
+                 
+                 return renderEventListGroup(sortedViewGrouped);
+              })()}
+            </div>
           ) : (
+            /* --- DEFAULT MODE: UPCOMING / PAST ARCHIVE --- */
             <div className="space-y-8">
               {/* CURRENT MONTH SUB-HEADER */}
               {isCurrentMonth && (
