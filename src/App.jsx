@@ -898,9 +898,20 @@ export default function App() {
                        WK {selectedWeekIdx + 1}
                     </div>
                     <div className="flex flex-col">
-                       <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-0.5">
-                         Focus Mode : Week View
-                       </span>
+                       <div className="flex items-center gap-2 mb-0.5">
+                         <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">
+                           Focus Mode : Week View
+                         </span>
+                         {(() => {
+                            const targetDates = calendarWeeks[selectedWeekIdx].filter(d => d).map(formatLocalDate);
+                            const count = filteredEvents.filter(e => targetDates.includes(e.date)).length;
+                            return (
+                              <span className="bg-blue-100 text-blue-600 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest">
+                                {count} Event{count !== 1 ? 's' : ''}
+                              </span>
+                            );
+                         })()}
+                       </div>
                        <span className="text-[14px] sm:text-[16px] font-black text-blue-900 tracking-tight">
                           {(() => {
                             const weekDates = calendarWeeks[selectedWeekIdx].filter(d => d);
