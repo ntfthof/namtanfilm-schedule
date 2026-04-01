@@ -186,7 +186,7 @@ export default function App() {
   
   // Active Archive & Week View State
   const [showPastEvents, setShowPastEvents] = useState(false);
-  const [selectedWeekIdx, setSelectedWeekIdx] = useState(null); // Option A Week View state
+  const [selectedWeekIdx, setSelectedWeekIdx] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
 
   const [filters, setFilters] = useState(
@@ -487,8 +487,7 @@ export default function App() {
                         </div>
                         
                         <div className="md:hidden flex flex-row flex-wrap items-center justify-end gap-1.5 ml-4 flex-1">
-                          <div className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold border ${cat.bg} ${cat.text} ${cat.border} transition-colors whitespace-nowrap max-w-full justify-end`}>
-                            <span className={`w-1 h-1 rounded-full ${cat.dot} flex-shrink-0`}></span>
+                          <div className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold border ${cat.bg} ${cat.text} ${cat.border} transition-colors whitespace-nowrap max-w-full justify-end`}>
                             <span className="break-words whitespace-normal text-right">{cat.label}</span>
                           </div>
                           <div className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold border ${remark.bg} ${remark.text} ${remark.border} transition-colors whitespace-nowrap max-w-full justify-end`}>
@@ -526,8 +525,7 @@ export default function App() {
                       </div>
                       
                       <div className={`flex-shrink-0 w-full md:w-auto mt-3 md:mt-0 gap-1.5 flex flex-col items-end md:items-end ${idx === 0 ? 'hidden md:flex' : 'flex'}`}>
-                        <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] md:text-[11px] font-bold border ${cat.bg} ${cat.text} ${cat.border} transition-colors whitespace-nowrap max-w-full justify-end`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${cat.dot} flex-shrink-0`}></span>
+                        <div className={`inline-flex items-center px-3 py-1.5 rounded-lg text-[10px] md:text-[11px] font-bold border ${cat.bg} ${cat.text} ${cat.border} transition-colors whitespace-nowrap max-w-full justify-end`}>
                           <span className="break-words whitespace-normal text-right">{cat.label}</span>
                         </div>
                         <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] md:text-[11px] font-bold border ${remark.bg} ${remark.text} ${remark.border} transition-colors max-w-full justify-end`}>
@@ -682,6 +680,8 @@ export default function App() {
             <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 px-2 custom-scrollbar">
               {todaysEvents.map(event => {
                 const cat = CATEGORIES[event.categoryId];
+                const remark = REMARKS[event.remarkId];
+                
                 return (
                   <div 
                     key={event.id} 
@@ -689,9 +689,15 @@ export default function App() {
                     className="flex-shrink-0 w-[85vw] sm:w-[320px] snap-center bg-white rounded-[2rem] p-6 border border-gray-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)] cursor-pointer hover:border-blue-300 hover:shadow-md transition-all flex flex-col gap-4"
                   >
                     <div className="flex items-center justify-between">
-                      <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold border ${cat.bg} ${cat.text} ${cat.border}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${cat.dot}`}></span>
-                        {cat.label}
+                      <div className="flex items-center gap-2">
+                        <div className={`inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black border ${cat.bg} ${cat.text} ${cat.border}`}>
+                          {event.categoryId === 'namtan' ? 'Namtan' : event.categoryId === 'film' ? 'Film' : event.categoryId === 'namtanfilm' ? 'NamtanFilm' : event.categoryId === 'lunar' ? 'LUNAR' : 'NamtanFilm & LUNAR'}
+                        </div>
+                        {remark && (
+                          <div className={`inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black border ${remark.bg} ${remark.text} ${remark.border}`}>
+                            {remark.short}
+                          </div>
+                        )}
                       </div>
                       <span className="text-[11px] font-black text-gray-400 flex items-center gap-1.5 uppercase tracking-widest flex-shrink-0 ml-2">
                         <Clock size={13} strokeWidth={3}/> {event.isTBA ? 'TBA' : event.time}
