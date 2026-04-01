@@ -686,7 +686,7 @@ export default function App() {
                   <div 
                     key={event.id} 
                     onClick={() => setViewingEvent(event)}
-                    className={`flex-shrink-0 ${todaysEvents.length === 1 ? 'w-full' : 'w-[85vw] sm:w-[320px]'} snap-center bg-white rounded-[2rem] p-6 border border-gray-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)] cursor-pointer hover:border-blue-300 hover:shadow-md transition-all flex flex-col gap-4`}
+                    className={`flex-shrink-0 ${todaysEvents.length === 1 ? 'w-full' : 'w-[85vw]'} sm:w-[320px] snap-center bg-white rounded-[2rem] p-6 border border-gray-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)] cursor-pointer hover:border-blue-300 hover:shadow-md transition-all flex flex-col gap-4`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
