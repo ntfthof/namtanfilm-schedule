@@ -706,8 +706,10 @@ export default function App() {
                     
                     <h3 className="text-[17px] font-black text-gray-900 leading-snug line-clamp-2">{event.title}</h3>
                     
-                    {/* NEW SECTION: Location and Truncated Tags grouped together at bottom */}
+                    {/* NEW SECTION: Location, Tags, Notes Prompt, and Copy Button grouped together at bottom with even spacing */}
                     <div className="mt-auto flex flex-col gap-3 pt-4 border-t border-gray-50">
+                      
+                      {/* 1. Location */}
                       {event.location && (
                         <div className="flex items-start gap-2 text-[12px] font-bold text-gray-500">
                           <MapPin size={15} className="text-gray-400 flex-shrink-0 mt-0.5" strokeWidth={2.5} />
@@ -715,36 +717,47 @@ export default function App() {
                         </div>
                       )}
                       
-                      {(event.keywords || event.hashtags) && (
-                        <div className="flex flex-col gap-2.5 mt-1">
-                          {event.keywords && (
-                            <div className="flex items-center gap-2 min-w-0">
-                              <Tag size={14} className="text-gray-400 flex-shrink-0" strokeWidth={2.5} />
-                              <span className="text-[11px] font-bold text-blue-600/80 truncate">
-                                {event.keywords}
-                              </span>
-                            </div>
-                          )}
-                          {event.hashtags && (
-                            <div className="flex items-center gap-2 min-w-0">
-                              <Hash size={14} className="text-gray-400 flex-shrink-0" strokeWidth={2.5} />
-                              <span className="text-[11px] font-bold text-blue-600/80 truncate">
-                                {event.hashtags}
-                              </span>
-                            </div>
-                          )}
-                          <button 
-                            onClick={(e) => { 
-                              e.stopPropagation(); // Prevents the card from opening when copying
-                              handleCopyTrending(event); 
-                            }}
-                            className={`w-full flex items-center justify-center gap-2 px-3 py-2.5 mt-1 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${copiedId === event.id ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-gray-50 text-gray-500 hover:bg-gray-100 border border-gray-100'}`}
-                            title="Copy full trending tags"
-                          >
-                            {copiedId === event.id ? <Check size={14} strokeWidth={3} /> : <Copy size={14} strokeWidth={3} />}
-                            {copiedId === event.id ? 'Copied to Clipboard' : 'Copy Trending Tags'}
-                          </button>
+                      {/* 2. Keyword */}
+                      {event.keywords && (
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Tag size={14} className="text-gray-400 flex-shrink-0" strokeWidth={2.5} />
+                          <span className="text-[11px] font-bold text-blue-600/80 truncate">
+                            {event.keywords}
+                          </span>
                         </div>
+                      )}
+
+                      {/* 3. Hashtags */}
+                      {event.hashtags && (
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Hash size={14} className="text-gray-400 flex-shrink-0" strokeWidth={2.5} />
+                          <span className="text-[11px] font-bold text-blue-600/80 truncate">
+                            {event.hashtags}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* 4. Notes Prompt */}
+                      {event.notes && (
+                        <div className="flex items-center gap-2 text-[12px] font-bold text-blue-500/90">
+                          <Info size={15} className="flex-shrink-0" strokeWidth={2.5} />
+                          <span className="italic">Click to see notes...</span>
+                        </div>
+                      )}
+                      
+                      {/* 5. Copy Button */}
+                      {(event.keywords || event.hashtags) && (
+                        <button 
+                          onClick={(e) => { 
+                            e.stopPropagation(); // Prevents the card from opening when copying
+                            handleCopyTrending(event); 
+                          }}
+                          className={`w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${copiedId === event.id ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-gray-50 text-gray-500 hover:bg-gray-100 border border-gray-100'}`}
+                          title="Copy full trending tags"
+                        >
+                          {copiedId === event.id ? <Check size={14} strokeWidth={3} /> : <Copy size={14} strokeWidth={3} />}
+                          {copiedId === event.id ? 'Copied to Clipboard' : 'Copy Trending Tags'}
+                        </button>
                       )}
                     </div>
 
