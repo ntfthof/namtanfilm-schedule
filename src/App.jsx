@@ -415,16 +415,16 @@ export default function App() {
       if (isCurrent) {
         if (eventDateStr >= tStr) {
           if (!upcoming[eventDateStr]) upcoming[eventDateStr] = [];
-          upcoming[eventDateStr].push(event);
+          upcoming[eventDateStr] = [...upcoming[eventDateStr], event];
           uCount++;
         } else {
           if (!past[eventDateStr]) past[eventDateStr] = [];
-          past[eventDateStr].push(event);
+          past[eventDateStr] = [...past[eventDateStr], event];
           pCount++;
         }
       } else {
         if (!upcoming[eventDateStr]) upcoming[eventDateStr] = [];
-        upcoming[eventDateStr].push(event);
+        upcoming[eventDateStr] = [...upcoming[eventDateStr], event];
         uCount++;
       }
     });
@@ -468,6 +468,7 @@ export default function App() {
     setRemarkFilters(prev => ({ ...prev, [remarkId]: !prev[remarkId] }));
   };
 
+  // SMART-STACKING COPY LOGIC: UPDATED AS REQUESTED
   const handleCopyTrending = (event) => {
     if (!event.keywords && !event.hashtags) return;
     
@@ -478,11 +479,37 @@ export default function App() {
       const tags = String(event.hashtags).split(/[\s,]+/).filter(t => t.trim());
       // Add the # to each tag
       const formattedTags = tags.map(tag => tag.startsWith('#') ? tag : `#${tag}`);
-      // Join them together with a SPACE instead of stacking them
-      parts.push(formattedTags.join(' ')); 
+      
+      const lines = [];
+      let currentLine = [];
+
+      formattedTags.forEach((tag) => {
+        // Rule: If tag is longer than 22 chars (Official event tag), it gets its own line
+        if (tag.length > 22) {
+          if (currentLine.length > 0) {
+            lines.push(currentLine.join(' '));
+            currentLine = [];
+          }
+          lines.push(tag);
+        } else {
+          currentLine.push(tag);
+          // Rule: Group artist/shorter tags in pairs of 2 per line
+          if (currentLine.length === 2) {
+            lines.push(currentLine.join(' '));
+            currentLine = [];
+          }
+        }
+      });
+
+      // Push any remaining tags
+      if (currentLine.length > 0) {
+        lines.push(currentLine.join(' '));
+      }
+
+      parts.push(lines.join('\n'));
     }
     
-    // Join the Keyword (top line) and the Hashtag group (bottom line) with ONE new line
+    // Join the Keyword (top line) and the Hashtag group with standard spacing
     const textToCopy = parts.join('\n');
     
     const textArea = document.createElement("textarea");
@@ -1038,7 +1065,7 @@ export default function App() {
                 <button 
                   key={idx}
                   onClick={() => setSelectedWeekIdx(idx)}
-                  className={`flex-shrink-0 px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${selectedWeekIdx === idx ? 'bg-blue-600 text-white shadow-sm border border-transparent' : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'}`}
+                  className={`flex-shrink-0 px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${selectedWeekIdx === idx ? 'bg-blue-600 text-white shadow-sm border border-transparent' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'}`}
                 >
                   WK {idx + 1}
                 </button>
