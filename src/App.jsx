@@ -191,6 +191,13 @@ const parseSafeDate = (dateStr) => {
   return new Date(); // Fallback to today to avoid crashes
 };
 
+// NEW: VISUAL UI FORMATTER FOR HASHTAGS
+const formatDisplayHashtags = (hashtags) => {
+  if (!hashtags) return '';
+  const tags = String(hashtags).split(/[\s,]+/).filter(t => t.trim());
+  return tags.map(tag => tag.startsWith('#') ? tag : `#${tag}`).join(' ');
+};
+
 export default function App() {
   const [events, setEvents] = useState([]);
   const [user, setUser] = useState(null);
@@ -467,12 +474,15 @@ export default function App() {
     const parts = [];
     if (event.keywords) parts.push(String(event.keywords).trim());
     if (event.hashtags) {
+      // Split the tags by spaces or commas
       const tags = String(event.hashtags).split(/[\s,]+/).filter(t => t.trim());
-      tags.forEach(tag => {
-        parts.push(tag.startsWith('#') ? tag : `#${tag}`);
-      });
+      // Add the # to each tag
+      const formattedTags = tags.map(tag => tag.startsWith('#') ? tag : `#${tag}`);
+      // Join them together with a SPACE instead of stacking them
+      parts.push(formattedTags.join(' ')); 
     }
     
+    // Join the Keyword (top line) and the Hashtag group (bottom line) with ONE new line
     const textToCopy = parts.join('\n');
     
     const textArea = document.createElement("textarea");
@@ -680,7 +690,8 @@ export default function App() {
                           {event.hashtags && (
                             <div className="flex items-start gap-3 text-[14px] min-w-0">
                               <span className="font-black text-gray-400 uppercase tracking-widest text-[9px] bg-gray-50 px-2 py-1 rounded-md border border-gray-100 flex-shrink-0 mt-0.5">Hashtag</span>
-                              <span className="font-bold text-blue-600/80 italic break-words flex-1 min-w-0 whitespace-normal">{event.hashtags}</span>
+                              {/* 1. APPLIED TO LIST VIEW UI HERE */}
+                              <span className="font-bold text-blue-600/80 italic break-words flex-1 min-w-0 whitespace-normal">{formatDisplayHashtags(event.hashtags)}</span>
                             </div>
                           )}
                         </div>
@@ -877,8 +888,9 @@ export default function App() {
                       {event.hashtags && (
                         <div className="flex items-center gap-2 min-w-0">
                           <Hash size={14} className="text-gray-400 flex-shrink-0" strokeWidth={2.5} />
+                          {/* 2. APPLIED TO HAPPENING TODAY CARD HERE */}
                           <span className="text-[11px] font-bold text-blue-600/80 truncate">
-                            {event.hashtags}
+                            {formatDisplayHashtags(event.hashtags)}
                           </span>
                         </div>
                       )}
@@ -974,7 +986,6 @@ export default function App() {
                                 <span className={`text-[12px] sm:text-[13px] font-bold flex items-center justify-center px-2 py-0.5 rounded-lg min-w-[28px] ${isSelectedWeek ? 'bg-blue-500 text-white shadow-sm' : isToday ? 'bg-[#60a5fa] text-white shadow-sm' : 'text-gray-400'}`}>
                                   {date.getDate()}
                                 </span>
-                                {/* DELETED the explicit + button to save mobile space */}
                               </div>
 
                               <div className="space-y-1.5 flex-1">
@@ -1331,7 +1342,8 @@ export default function App() {
                           <Hash size={16} className="text-gray-400 mt-1 flex-shrink-0" strokeWidth={3} />
                           <div className="min-w-0 flex-1">
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Hashtags</p>
-                            <p className="text-sm font-bold text-blue-600/90 italic leading-tight break-words whitespace-normal">{viewingEvent.hashtags}</p>
+                            {/* 3. APPLIED TO EVENT MODAL HERE */}
+                            <p className="text-sm font-bold text-blue-600/90 italic leading-tight break-words whitespace-normal">{formatDisplayHashtags(viewingEvent.hashtags)}</p>
                           </div>
                         </div>
                       )}
