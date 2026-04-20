@@ -6,8 +6,7 @@ import {
   Edit, 
   Trash2, 
   Plus, 
-  Lock, 
-  Unlock, 
+  Lock,
   X, 
   ChevronLeft, 
   ChevronRight, 
@@ -171,6 +170,27 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December"
 ];
 
+// --- SAFE HELPER FUNCTIONS (Prevents React Script Errors) ---
+const getCategory = (id) => CATEGORIES[id] || CATEGORIES.namtan;
+const getRemark = (id) => REMARKS[id] || REMARKS.open;
+
+// SAFELY PARSES STRINGS INTO DATES WITHOUT CRASHING
+const parseSafeDate = (dateStr) => {
+  try {
+    const str = String(dateStr || '');
+    const parts = str.split('-');
+    if (parts.length === 3) {
+      const [y, m, d] = parts.map(Number);
+      if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+        return new Date(y, m - 1, d);
+      }
+    }
+  } catch (e) {
+    console.error("Date parse error", e);
+  }
+  return new Date(); // Fallback to today to avoid crashes
+};
+
 export default function App() {
   const [events, setEvents] = useState([]);
   const [user, setUser] = useState(null);
@@ -180,6 +200,14 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [isLegendOpen, setIsLegendOpen] = useState(false); 
   
+  // NEW: Secret Ninja Clicks for Admin
+  const [secretClicks, setSecretClicks] = useState(0);
+
+  // NEW: Swipe & Mouse Drag Gestures for Mobile and Desktop
+  const [dragStart, setDragStart] = useState(null);
+  const [dragEnd, setDragEnd] = useState(null);
+  const MIN_SWIPE_DISTANCE = 50;
+
   // Quick Date Jump State
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [pickerYear, setPickerYear] = useState(new Date().getFullYear());
@@ -204,6 +232,15 @@ export default function App() {
   const [formData, setFormData] = useState({
     title: '', categoryId: 'namtan', date: '', time: '', isTBA: false, location: '', remarkId: 'open', keywords: '', hashtags: '', notes: ''
   });
+
+  // Handle Ninja Login Clicks Reset Timer
+  useEffect(() => {
+    let timeout;
+    if (secretClicks > 0 && secretClicks < 5) {
+      timeout = setTimeout(() => setSecretClicks(0), 2000);
+    }
+    return () => clearTimeout(timeout);
+  }, [secretClicks]);
 
   useEffect(() => {
     const initAuth = async () => {
@@ -247,7 +284,11 @@ export default function App() {
     if (aIsTBA && !bIsTBA) return 1;
     if (!aIsTBA && bIsTBA) return -1;
     if (aIsTBA && bIsTBA) return 0;
-    return a.time.localeCompare(b.time);
+    
+    // Safety check forcing string conversion
+    const timeA = String(a.time || '');
+    const timeB = String(b.time || '');
+    return timeA.localeCompare(timeB);
   };
 
   const formatLocalDate = (date) => {
@@ -263,7 +304,11 @@ export default function App() {
   // ALWAYS VISIBLE TODAY EVENTS
   const todaysEvents = useMemo(() => {
     return events
-      .filter(e => e.date === todayStr && filters[e.categoryId] && remarkFilters[e.remarkId])
+      .filter(e => {
+        const catId = getCategory(e.categoryId).id;
+        const remId = getRemark(e.remarkId).id;
+        return e.date === todayStr && filters[catId] && remarkFilters[remId];
+      })
       .sort(sortEventsByTime);
   }, [events, todayStr, filters, remarkFilters]);
 
@@ -273,16 +318,77 @@ export default function App() {
 
     return events
       .filter(event => {
-        const [eYear, eMonth] = event.date.split('-').map(Number);
-        const matchesMonth = eYear === year && (eMonth - 1) === monthIndex;
-        return filters[event.categoryId] && remarkFilters[event.remarkId] && matchesMonth;
+        const eventDateStr = String(event.date || '');
+        const parts = eventDateStr.split('-');
+        let matchesMonth = false;
+        
+        if (parts.length === 3) {
+          const eYear = Number(parts[0]);
+          const eMonth = Number(parts[1]);
+          matchesMonth = eYear === year && (eMonth - 1) === monthIndex;
+        }
+
+        const catId = getCategory(event.categoryId).id;
+        const remId = getRemark(event.remarkId).id;
+        return filters[catId] && remarkFilters[remId] && matchesMonth;
       })
       .sort((a, b) => {
-        const dateDiff = a.date.localeCompare(b.date);
+        const dateA = String(a.date || '');
+        const dateB = String(b.date || '');
+        const dateDiff = dateA.localeCompare(dateB);
         if (dateDiff !== 0) return dateDiff;
         return sortEventsByTime(a, b);
       });
   }, [events, filters, remarkFilters, currentMonth]);
+
+  // SMART SWIPE LOGIC: Get all events happening on the exact same day as the currently viewed event
+  const sameDayEvents = useMemo(() => {
+    if (!viewingEvent) return [];
+    return events
+      .filter(e => {
+        const catId = getCategory(e.categoryId).id;
+        const remId = getRemark(e.remarkId).id;
+        return e.date === viewingEvent.date && filters[catId] && remarkFilters[remId];
+      })
+      .sort(sortEventsByTime);
+  }, [viewingEvent, events, filters, remarkFilters]);
+
+  // SAFE TOUCH & MOUSE HANDLERS
+  const handleDragStart = (clientX) => {
+    setDragStart(clientX);
+    setDragEnd(null);
+  };
+
+  const handleDragMove = (clientX) => {
+    if (dragStart !== null) {
+      setDragEnd(clientX);
+    }
+  };
+
+  const handleDragEnd = () => {
+    if (!dragStart || !dragEnd) {
+      setDragStart(null);
+      setDragEnd(null);
+      return;
+    }
+
+    const distance = dragStart - dragEnd;
+    const isLeftSwipe = distance > MIN_SWIPE_DISTANCE;
+    const isRightSwipe = distance < -MIN_SWIPE_DISTANCE;
+
+    if ((isLeftSwipe || isRightSwipe) && sameDayEvents.length > 1) {
+      const currentIndex = sameDayEvents.findIndex(e => e.id === viewingEvent.id);
+      if (isLeftSwipe && currentIndex !== -1 && currentIndex < sameDayEvents.length - 1) {
+        setViewingEvent(sameDayEvents[currentIndex + 1]);
+      }
+      if (isRightSwipe && currentIndex > 0) {
+        setViewingEvent(sameDayEvents[currentIndex - 1]);
+      }
+    }
+    
+    setDragStart(null);
+    setDragEnd(null);
+  };
 
   // Grouping logic with Active Archive
   const { upcomingGrouped, pastGrouped, isCurrentMonth, pastCount, upcomingCount } = useMemo(() => {
@@ -298,31 +404,43 @@ export default function App() {
     let uCount = 0;
 
     filteredEvents.forEach(event => {
+      const eventDateStr = String(event.date || '');
       if (isCurrent) {
-        if (event.date >= tStr) {
-          if (!upcoming[event.date]) upcoming[event.date] = [];
-          upcoming[event.date].push(event);
+        if (eventDateStr >= tStr) {
+          if (!upcoming[eventDateStr]) upcoming[eventDateStr] = [];
+          upcoming[eventDateStr].push(event);
           uCount++;
         } else {
-          if (!past[event.date]) past[event.date] = [];
-          past[event.date].push(event);
+          if (!past[eventDateStr]) past[eventDateStr] = [];
+          past[eventDateStr].push(event);
           pCount++;
         }
       } else {
-        if (!upcoming[event.date]) upcoming[event.date] = [];
-        upcoming[event.date].push(event);
+        if (!upcoming[eventDateStr]) upcoming[eventDateStr] = [];
+        upcoming[eventDateStr].push(event);
         uCount++;
       }
     });
 
     return { 
-      upcomingGrouped: Object.entries(upcoming).sort((a, b) => a[0].localeCompare(b[0])), 
-      pastGrouped: Object.entries(past).sort((a, b) => a[0].localeCompare(b[0])),
+      upcomingGrouped: Object.entries(upcoming).sort((a, b) => String(a[0]).localeCompare(String(b[0]))), 
+      pastGrouped: Object.entries(past).sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
       isCurrentMonth: isCurrent,
       pastCount: pCount,
       upcomingCount: uCount
     };
   }, [filteredEvents, currentMonth]);
+
+  const handleSecretClick = () => {
+    setSecretClicks(prev => {
+      const next = prev + 1;
+      if (next >= 5) {
+        setShowLogin(true);
+        return 0;
+      }
+      return next;
+    });
+  };
 
   const handleLogin = (e) => {
     e.preventDefault();
@@ -347,9 +465,9 @@ export default function App() {
     if (!event.keywords && !event.hashtags) return;
     
     const parts = [];
-    if (event.keywords) parts.push(event.keywords.trim());
+    if (event.keywords) parts.push(String(event.keywords).trim());
     if (event.hashtags) {
-      const tags = event.hashtags.split(/[\s,]+/).filter(t => t.trim());
+      const tags = String(event.hashtags).split(/[\s,]+/).filter(t => t.trim());
       tags.forEach(tag => {
         parts.push(tag.startsWith('#') ? tag : `#${tag}`);
       });
@@ -383,6 +501,24 @@ export default function App() {
     setFormData({ ...event });
     setEditingEvent(event);
     setShowEventModal(true);
+  };
+
+  const handleDuplicate = (eventToCopy) => {
+    setFormData({
+      title: eventToCopy.title || '',
+      categoryId: eventToCopy.categoryId || 'namtan',
+      date: eventToCopy.date || '',
+      time: eventToCopy.time || '',
+      isTBA: eventToCopy.isTBA || false,
+      location: eventToCopy.location || '',
+      remarkId: eventToCopy.remarkId || 'open',
+      keywords: eventToCopy.keywords || '',
+      hashtags: eventToCopy.hashtags || '',
+      notes: eventToCopy.notes || ''
+    });
+    setEditingEvent(null); // Force it to act like a new creation
+    setViewingEvent(null); // Close the viewing modal
+    setShowEventModal(true); // Open the creation modal
   };
 
   const handleDelete = async (id) => {
@@ -460,20 +596,17 @@ export default function App() {
   };
 
   const renderEventListGroup = (groupedData) => {
-    return groupedData.map(([date, dayEvents]) => {
-      // LITERAL DATE FIX: Split the string and create a local date to avoid timezone shifts
-      const [y, m, d] = date.split('-').map(Number);
-      const eventDate = new Date(y, m - 1, d);
-      
-      const firstEventTheme = CATEGORIES[dayEvents[0].categoryId];
-      const isPast = date < todayStr;
+    return groupedData.map(([dateStr, dayEvents]) => {
+      // Safe Date Parsing Replacement
+      const eventDate = parseSafeDate(dateStr || formatLocalDate(new Date()));
+      const firstEventTheme = getCategory(dayEvents[0].categoryId);
 
       return (
-        <div key={date} className="bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-[0_2px_20px_rgb(0,0,0,0.02)] p-6 md:p-8">
+        <div key={dateStr} className="bg-white rounded-[2.5rem] border border-gray-100 overflow-hidden shadow-[0_2px_20px_rgb(0,0,0,0.02)] p-6 md:p-8">
           <div className="flex flex-col gap-0">
             {dayEvents.map((event, idx) => {
-              const cat = CATEGORIES[event.categoryId];
-              const remark = REMARKS[event.remarkId];
+              const cat = getCategory(event.categoryId);
+              const remark = getRemark(event.remarkId);
 
               return (
                 <div key={event.id} className={`flex flex-col md:flex-row gap-6 md:gap-10 ${idx > 0 ? 'pt-0.5 md:pt-6 mt-8 border-t border-gray-100' : ''}`}>
@@ -560,7 +693,8 @@ export default function App() {
                             </div>
                           ) : <div className="flex-1"></div>}
                           
-                          {!isPast && (event.keywords || event.hashtags) && (
+                          {/* Safe check for isPast replaced with strict string compare */}
+                          {(dateStr >= todayStr) && (event.keywords || event.hashtags) && (
                             <button 
                               onClick={() => handleCopyTrending(event)}
                               className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-sm border ${copiedId === event.id ? 'bg-emerald-500 text-white border-transparent' : 'bg-gray-900 text-white border-transparent hover:bg-gray-800 active:scale-95'}`}
@@ -588,11 +722,16 @@ export default function App() {
         
         <header className="flex flex-col sm:flex-row justify-between items-center gap-4 md:gap-6 font-black uppercase tracking-tight">
           <div className="flex items-center gap-5">
-            <div className="w-14 h-14 bg-[#dbeafe] text-[#3b82f6] rounded-2xl flex items-center justify-center shadow-sm">
+            <div className="w-14 h-14 bg-[#dbeafe] text-[#3b82f6] rounded-2xl flex items-center justify-center shadow-sm flex-shrink-0">
               <CalendarIcon size={28} strokeWidth={2.5} />
             </div>
             <div className="flex flex-col">
-              <h1 className="text-[22px] md:text-[28px] text-gray-900 leading-tight">
+              {/* ADMIN SECRET LOGIN: Tap Title 5 Times */}
+              <h1 
+                onClick={handleSecretClick}
+                className="text-[22px] md:text-[28px] text-gray-900 leading-tight cursor-pointer select-none touch-manipulation"
+                title="NamtanFilm Schedule"
+              >
                 NamtanFilm & LUNAR Schedule
               </h1>
               <div className="text-[12px] md:text-[14px] text-gray-400 font-bold tracking-[0.05em] mt-0.5">
@@ -609,14 +748,21 @@ export default function App() {
           </div>
           <div className="flex items-center gap-3">
             {loading && <div className="text-xs font-bold text-gray-400 animate-pulse tracking-widest">Syncing...</div>}
+            
             <button onClick={() => setIsLegendOpen(!isLegendOpen)} className={`flex items-center gap-2 px-6 py-3.5 rounded-2xl font-black text-sm uppercase transition-all shadow-sm border ${isLegendOpen ? 'bg-indigo-600 text-white border-transparent' : 'bg-white text-gray-600 border-gray-100 hover:bg-gray-50'}`}>
               <Filter size={18} /> {isLegendOpen ? 'Hide Filters' : 'Show Filters'} {isLegendOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
             </button>
-            {isAdmin ? (
-              <button onClick={() => setIsAdmin(false)} className="w-14 h-14 bg-white border border-gray-200 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50 transition-colors shadow-sm"><Unlock size={22} /></button>
-            ) : (
-              <button onClick={() => setShowLogin(true)} className="w-14 h-14 bg-white border border-gray-200 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-800 transition-colors shadow-sm"><Lock size={22} /></button>
+
+            {/* ADMIN LOGOUT BUTTON: Only visible when logged in! */}
+            {isAdmin && (
+              <button 
+                onClick={() => setIsAdmin(false)} 
+                className="px-6 py-3.5 bg-red-50 text-red-600 rounded-2xl font-black text-sm uppercase transition-all shadow-sm border border-red-100 hover:bg-red-100 hover:border-red-200"
+              >
+                Log Out
+              </button>
             )}
+
           </div>
         </header>
 
@@ -679,8 +825,8 @@ export default function App() {
           {todaysEvents.length > 0 ? (
             <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 px-2 custom-scrollbar">
               {todaysEvents.map(event => {
-                const cat = CATEGORIES[event.categoryId];
-                const remark = REMARKS[event.remarkId];
+                const cat = getCategory(event.categoryId);
+                const remark = getRemark(event.remarkId);
                 
                 return (
                   <div 
@@ -691,7 +837,7 @@ export default function App() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className={`inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black border ${cat.bg} ${cat.text} ${cat.border}`}>
-                          {event.categoryId === 'namtan' ? 'Namtan' : event.categoryId === 'film' ? 'Film' : event.categoryId === 'namtanfilm' ? 'NamtanFilm' : event.categoryId === 'lunar' ? 'LUNAR' : 'NamtanFilm & LUNAR'}
+                          {cat.label.split(' | ')[0]}
                         </div>
                         {remark && (
                           <div className={`inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black border ${remark.bg} ${remark.text} ${remark.border}`}>
@@ -815,15 +961,26 @@ export default function App() {
                       const isToday = date && date.toDateString() === new Date().toDateString();
                       const isSelectedWeek = selectedWeekIdx === wIdx;
 
+                      // RESTORED: Parent container onClick for Admins to easily add events by tapping the background
                       return (
-                        <div key={i} className={`min-h-[140px] md:min-h-[160px] lg:min-h-[200px] p-2 transition-colors flex flex-col ${!date ? 'bg-white' : isSelectedWeek ? 'bg-blue-50/30 ring-1 ring-blue-100 ring-inset' : isToday ? 'bg-[#fffbeb]' : 'bg-white'} ${date && isAdmin ? 'hover:bg-gray-50 cursor-pointer' : ''}`} onClick={() => { if(date && isAdmin) openAddModal(formatLocalDate(date)) }}>
+                        <div 
+                          key={i} 
+                          onClick={() => { if(date && isAdmin) openAddModal(formatLocalDate(date)) }}
+                          className={`min-h-[140px] md:min-h-[160px] lg:min-h-[200px] p-2 transition-colors flex flex-col ${!date ? 'bg-white' : isSelectedWeek ? 'bg-blue-50/30 ring-1 ring-blue-100 ring-inset' : isToday ? 'bg-[#fffbeb]' : 'bg-white'} ${date && isAdmin ? 'cursor-pointer hover:bg-gray-50' : ''}`}
+                        >
                           {date && (
                             <div className="flex flex-col h-full">
-                              <div className="mb-2 flex justify-start"><span className={`text-[12px] sm:text-[13px] font-bold flex items-center justify-center px-2 py-0.5 rounded-lg min-w-[28px] ${isSelectedWeek ? 'bg-blue-500 text-white shadow-sm' : isToday ? 'bg-[#60a5fa] text-white shadow-sm' : 'text-gray-400'}`}>{date.getDate()}</span></div>
+                              <div className="mb-2 flex justify-start">
+                                <span className={`text-[12px] sm:text-[13px] font-bold flex items-center justify-center px-2 py-0.5 rounded-lg min-w-[28px] ${isSelectedWeek ? 'bg-blue-500 text-white shadow-sm' : isToday ? 'bg-[#60a5fa] text-white shadow-sm' : 'text-gray-400'}`}>
+                                  {date.getDate()}
+                                </span>
+                                {/* DELETED the explicit + button to save mobile space */}
+                              </div>
+
                               <div className="space-y-1.5 flex-1">
                                 {dayEvents.map(event => {
-                                  const cat = CATEGORIES[event.categoryId];
-                                  const remark = REMARKS[event.remarkId];
+                                  const cat = getCategory(event.categoryId);
+                                  const remark = getRemark(event.remarkId);
                                   return (
                                     <div key={event.id} onClick={(e) => { e.stopPropagation(); setViewingEvent(event); }} className={`px-1.5 py-1 rounded-md border ${cat.dateBorder} ${cat.bg} ${cat.text} cursor-pointer hover:shadow-sm transition-all flex flex-col w-full overflow-hidden`}>
                                       <div className="font-bold text-[10px] sm:text-[11px] truncate leading-tight w-full">
@@ -904,7 +1061,8 @@ export default function App() {
                        <div className="flex items-center gap-3 flex-wrap mt-0.5">
                          <span className="text-[14px] sm:text-[16px] font-black text-blue-900 tracking-tight">
                             {(() => {
-                              const weekDates = calendarWeeks[selectedWeekIdx].filter(d => d);
+                              const currentWeek = calendarWeeks[selectedWeekIdx] || [];
+                              const weekDates = currentWeek.filter(d => d);
                               if (weekDates.length === 0) return '';
                               const start = weekDates[0];
                               const end = weekDates[weekDates.length - 1];
@@ -912,8 +1070,9 @@ export default function App() {
                             })()}
                          </span>
                          {(() => {
-                            const targetDates = calendarWeeks[selectedWeekIdx].filter(d => d).map(formatLocalDate);
-                            const count = filteredEvents.filter(e => targetDates.includes(e.date)).length;
+                            const currentWeek = calendarWeeks[selectedWeekIdx] || [];
+                            const targetDates = currentWeek.filter(d => d).map(formatLocalDate);
+                            const count = filteredEvents.filter(e => targetDates.includes(String(e.date || ''))).length;
                             return (
                               <span className="bg-blue-100 text-blue-600 px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest shadow-sm">
                                 {count} Event{count !== 1 ? 's' : ''}
@@ -926,8 +1085,9 @@ export default function App() {
               </div>
 
               {(() => {
-                 const targetDates = calendarWeeks[selectedWeekIdx].filter(d => d).map(formatLocalDate);
-                 const viewEvents = filteredEvents.filter(e => targetDates.includes(e.date));
+                 const currentWeek = calendarWeeks[selectedWeekIdx] || [];
+                 const targetDates = currentWeek.filter(d => d).map(formatLocalDate);
+                 const viewEvents = filteredEvents.filter(e => targetDates.includes(String(e.date || '')));
                  
                  if (viewEvents.length === 0) {
                     return (
@@ -944,17 +1104,18 @@ export default function App() {
                  // Group the filtered events by date so we can reuse the render logic cleanly
                  const viewGrouped = {};
                  viewEvents.forEach(e => {
-                   if (!viewGrouped[e.date]) viewGrouped[e.date] = [];
-                   viewGrouped[e.date].push(e);
+                   const eventDateStr = String(e.date || '');
+                   if (!viewGrouped[eventDateStr]) viewGrouped[eventDateStr] = [];
+                   viewGrouped[eventDateStr].push(e);
                  });
-                 const sortedViewGrouped = Object.entries(viewGrouped).sort((a, b) => a[0].localeCompare(b[0]));
+                 const sortedViewGrouped = Object.entries(viewGrouped).sort((a, b) => String(a[0]).localeCompare(String(b[0])));
                  
                  return renderEventListGroup(sortedViewGrouped);
               })()}
             </div>
           ) : (
             /* --- DEFAULT MODE: UPCOMING / PAST ARCHIVE --- */
-            <div className="space-y-8">
+            <div className="space-y-4">
               {/* CURRENT MONTH SUB-HEADER */}
               {isCurrentMonth && (
                 <div className="px-2 -mb-2">
@@ -978,7 +1139,7 @@ export default function App() {
               </div>
 
               {isCurrentMonth && pastGrouped.length > 0 && (
-                <div className="space-y-6 pt-4">
+                <div className="space-y-6">
                   <button 
                     onClick={() => setShowPastEvents(!showPastEvents)}
                     className="w-full flex items-center justify-between p-6 bg-white rounded-[2rem] border border-gray-100 shadow-sm group transition-all"
@@ -1054,36 +1215,89 @@ export default function App() {
       )}
 
       {viewingEvent && (() => {
-        const cat = CATEGORIES[viewingEvent.categoryId];
-        const remark = REMARKS[viewingEvent.remarkId];
+        const cat = getCategory(viewingEvent.categoryId);
+        const remark = getRemark(viewingEvent.remarkId);
         
-        // LITERAL DATE FIX: Force the date to remain fixed regardless of user's timezone
-        const [y, m, d] = viewingEvent.date.split('-').map(Number);
-        const eventDate = new Date(y, m - 1, d);
-        
-        const isPast = viewingEvent.date < todayStr;
+        // SAFE DATE FIX: Parses the string securely and avoids 'Invalid Date' crashes
+        const eventDateStr = String(viewingEvent.date || todayStr);
+        const eventDate = parseSafeDate(eventDateStr);
+
+        // Where am I in the list of events for today?
+        const currentIndex = sameDayEvents.findIndex(e => e.id === viewingEvent.id);
+
         return (
           <div className="fixed inset-0 bg-[#111827]/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-w-[95vw] flex flex-col h-auto max-h-[90vh] overflow-hidden relative animate-in zoom-in-95 font-black">
-              <div className="px-8 pt-8 pb-4 bg-white border-b border-gray-50 flex justify-between items-start flex-nowrap z-30">
-                <div className="flex items-start gap-3 pr-8 min-w-0 flex-1">
+            
+            {/* ADDED SWIPE & MOUSE GESTURE HANDLERS TO MODAL CONTAINER */}
+            <div 
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-w-[95vw] flex flex-col h-auto max-h-[90vh] overflow-hidden relative animate-in zoom-in-95 font-black"
+              onTouchStart={(e) => { if (e.targetTouches?.length > 0) handleDragStart(e.targetTouches[0].clientX); }}
+              onTouchMove={(e) => { if (e.targetTouches?.length > 0) handleDragMove(e.targetTouches[0].clientX); }}
+              onTouchEnd={handleDragEnd}
+              onMouseDown={(e) => handleDragStart(e.clientX)}
+              onMouseMove={(e) => handleDragMove(e.clientX)}
+              onMouseUp={handleDragEnd}
+              onMouseLeave={handleDragEnd}
+            >
+              
+              {/* SMART SWIPE DOTS NAVIGATION: Only visible if multiple events exist today */}
+              {sameDayEvents.length > 1 && (
+                <div className="flex justify-center gap-2 pt-6 pb-2 bg-white z-40">
+                  {sameDayEvents.map((evt, idx) => (
+                    <div 
+                      key={evt.id} 
+                      className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${idx === currentIndex ? 'bg-[#111827] scale-[1.3]' : 'bg-gray-200'}`} 
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Header adjusts padding based on whether dots are present */}
+              <div className={`px-8 ${sameDayEvents.length > 1 ? 'pt-2' : 'pt-8'} pb-4 bg-white border-b border-gray-50 flex justify-between items-start flex-nowrap z-30`}>
+                <div className="flex items-start gap-3 pr-4 min-w-0 flex-1">
                   <span className={`w-3.5 h-3.5 mt-2 rounded-full ${cat.dot} flex-shrink-0 shadow-sm`}></span>
                   <h2 className="text-2xl font-black text-[#000000] leading-tight uppercase tracking-tight break-words flex-1 min-w-0">
                     {viewingEvent.title}
                   </h2>
                 </div>
-                <button 
-                  onClick={() => setViewingEvent(null)} 
-                  className="text-gray-400 hover:text-gray-800 bg-gray-50 p-2 rounded-full transition-colors flex-shrink-0 ml-2 shadow-sm"
-                >
-                  <X size={20}/>
-                </button>
+                
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {/* LAPTOP/PC ONLY: Explicit Next/Prev Buttons */}
+                  {sameDayEvents.length > 1 && (
+                    <div className="hidden sm:flex items-center gap-1 bg-gray-50 p-1 rounded-2xl shadow-sm border border-gray-100">
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); if (currentIndex > 0) setViewingEvent(sameDayEvents[currentIndex - 1]); }}
+                        disabled={currentIndex === 0}
+                        className={`p-1.5 rounded-xl transition-colors ${currentIndex === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-200 hover:text-gray-900'}`}
+                        title="Previous Event"
+                      >
+                        <ChevronLeft size={16} strokeWidth={3}/>
+                      </button>
+                      <div className="w-px h-4 bg-gray-200"></div>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); if (currentIndex < sameDayEvents.length - 1) setViewingEvent(sameDayEvents[currentIndex + 1]); }}
+                        disabled={currentIndex === sameDayEvents.length - 1}
+                        className={`p-1.5 rounded-xl transition-colors ${currentIndex === sameDayEvents.length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-200 hover:text-gray-900'}`}
+                        title="Next Event"
+                      >
+                        <ChevronRight size={16} strokeWidth={3}/>
+                      </button>
+                    </div>
+                  )}
+
+                  <button 
+                    onClick={() => setViewingEvent(null)} 
+                    className="text-gray-400 hover:text-gray-800 bg-gray-50 p-2.5 rounded-2xl transition-colors shadow-sm border border-gray-100"
+                  >
+                    <X size={20} strokeWidth={2.5}/>
+                  </button>
+                </div>
               </div>
 
               <div className="flex-1 overflow-y-auto px-8 pb-8 custom-scrollbar font-black">
                 <div className="space-y-6 pt-4">
                   <div className="grid grid-cols-1 gap-4 text-[15px] text-gray-600 bg-gray-50/50 p-5 rounded-2xl border border-gray-100 overflow-hidden">
-                    <div className="flex items-center gap-3"><CalendarIcon size={18} strokeWidth={2.5} className="text-gray-400 flex-shrink-0" /><span>{eventDate.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span></div>
+                    <div className="flex items-center gap-3"><CalendarIcon size={18} strokeWidth={2.5} className="text-gray-400 flex-shrink-0" /><span>{eventDate.toLocaleString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span></div>
                     {(viewingEvent.time || viewingEvent.isTBA) && (
                       <div className="flex items-center gap-3">
                         <Clock size={18} strokeWidth={2.5} className="text-gray-400 flex-shrink-0" />
@@ -1131,7 +1345,8 @@ export default function App() {
                         </div>
                       )}
 
-                      {!isPast && (viewingEvent.keywords || viewingEvent.hashtags) && (
+                      {/* Safe String Checks for the past event evaluation */}
+                      {(String(viewingEvent.date || '') >= todayStr) && (viewingEvent.keywords || viewingEvent.hashtags) && (
                         <div className="pt-4 flex justify-end">
                           <button 
                             onClick={() => handleCopyTrending(viewingEvent)}
@@ -1145,10 +1360,19 @@ export default function App() {
                     </div>
                   )}
                 </div>
+
+                {/* ADMIN ACTIONS: Now with Duplicate Button */}
                 {isAdmin && (
-                  <div className="flex gap-3 pt-6 border-t border-gray-100 mt-6 sticky bottom-0 bg-white">
-                    <button onClick={() => { setViewingEvent(null); openEditModal(viewingEvent); }} className="flex-1 bg-blue-50 text-blue-600 font-bold py-3.5 rounded-2xl hover:bg-blue-100 transition-colors flex items-center justify-center gap-2 shadow-sm font-black"><Edit size={18} strokeWidth={2.5} /> Edit</button>
-                    <button onClick={() => handleDelete(viewingEvent.id)} className="flex-1 bg-red-50 text-red-500 font-black py-3.5 rounded-2xl hover:bg-red-100 transition-colors flex items-center justify-center gap-2 shadow-sm font-black"><Trash2 size={18} strokeWidth={2.5} /> Delete</button>
+                  <div className="flex gap-2 pt-6 border-t border-gray-100 mt-6 sticky bottom-0 bg-white">
+                    <button onClick={() => { setViewingEvent(null); openEditModal(viewingEvent); }} className="flex-1 bg-blue-50 text-blue-600 font-bold py-3.5 rounded-2xl hover:bg-blue-100 transition-colors flex items-center justify-center gap-2 shadow-sm font-black text-[13px] uppercase tracking-wider">
+                      <Edit size={16} strokeWidth={2.5} /> Edit
+                    </button>
+                    <button onClick={() => handleDuplicate(viewingEvent)} className="flex-1 bg-emerald-50 text-emerald-600 font-bold py-3.5 rounded-2xl hover:bg-emerald-100 transition-colors flex items-center justify-center gap-2 shadow-sm font-black text-[13px] uppercase tracking-wider">
+                      <Copy size={16} strokeWidth={2.5} /> Copy
+                    </button>
+                    <button onClick={() => handleDelete(viewingEvent.id)} className="flex-1 bg-red-50 text-red-500 font-black py-3.5 rounded-2xl hover:bg-red-100 transition-colors flex items-center justify-center gap-2 shadow-sm font-black text-[13px] uppercase tracking-wider">
+                      <Trash2 size={16} strokeWidth={2.5} /> Delete
+                    </button>
                   </div>
                 )}
               </div>
