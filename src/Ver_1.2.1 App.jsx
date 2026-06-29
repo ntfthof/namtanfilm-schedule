@@ -19,9 +19,7 @@ import {
   Copy, 
   Check, 
   CalendarCheck,
-  Coffee,
-  Search,
-  LogOut
+  Coffee
 } from 'lucide-react';
 
 // Firebase Imports
@@ -172,22 +170,11 @@ const MONTHS = [
   "July", "August", "September", "October", "November", "December"
 ];
 
-// --- SAFE HELPER FUNCTIONS ---
+// --- SAFE HELPER FUNCTIONS (Prevents React Script Errors) ---
 const getCategory = (id) => CATEGORIES[id] || CATEGORIES.namtan;
 const getRemark = (id) => REMARKS[id] || REMARKS.open;
 
-// SEARCH HELPER: Custom English Artist Names
-const getArtistEnglishName = (id) => {
-  const names = {
-    namtan: 'Namtan',
-    film: 'Film',
-    namtanfilm: 'NamtanFilm',
-    lunar: 'LUNAR',
-    namtanfilmlunar: 'NTF & LUNAR'
-  };
-  return names[id] || 'Unknown';
-};
-
+// SAFELY PARSES STRINGS INTO DATES WITHOUT CRASHING
 const parseSafeDate = (dateStr) => {
   try {
     const str = String(dateStr || '');
@@ -201,9 +188,10 @@ const parseSafeDate = (dateStr) => {
   } catch (e) {
     console.error("Date parse error", e);
   }
-  return new Date();
+  return new Date(); // Fallback to today to avoid crashes
 };
 
+// NEW: VISUAL UI FORMATTER FOR HASHTAGS
 const formatDisplayHashtags = (hashtags) => {
   if (!hashtags) return '';
   const tags = String(hashtags).split(/[\s,]+/).filter(t => t.trim());
@@ -219,21 +207,19 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [isLegendOpen, setIsLegendOpen] = useState(false); 
   
-  // Search Feature State
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchArtist, setSearchArtist] = useState('all');
-  const [searchYear, setSearchYear] = useState('all');
-  const [searchType, setSearchType] = useState('all');
-
+  // NEW: Secret Ninja Clicks for Admin
   const [secretClicks, setSecretClicks] = useState(0);
+
+  // NEW: Swipe & Mouse Drag Gestures for Mobile and Desktop
   const [dragStart, setDragStart] = useState(null);
   const [dragEnd, setDragEnd] = useState(null);
   const MIN_SWIPE_DISTANCE = 50;
 
+  // Quick Date Jump State
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [pickerYear, setPickerYear] = useState(new Date().getFullYear());
   
+  // Active Archive & Week View State
   const [showPastEvents, setShowPastEvents] = useState(false);
   const [selectedWeekIdx, setSelectedWeekIdx] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
@@ -254,6 +240,7 @@ export default function App() {
     title: '', categoryId: 'namtan', date: '', time: '', isTBA: false, location: '', remarkId: 'open', keywords: '', hashtags: '', notes: ''
   });
 
+  // Handle Ninja Login Clicks Reset Timer
   useEffect(() => {
     let timeout;
     if (secretClicks > 0 && secretClicks < 5) {
@@ -300,10 +287,15 @@ export default function App() {
   const sortEventsByTime = (a, b) => {
     const aIsTBA = a.isTBA || !a.time;
     const bIsTBA = b.isTBA || !b.time;
+
     if (aIsTBA && !bIsTBA) return 1;
     if (!aIsTBA && bIsTBA) return -1;
     if (aIsTBA && bIsTBA) return 0;
-    return String(a.time || '').localeCompare(String(b.time || ''));
+    
+    // Safety check forcing string conversion
+    const timeA = String(a.time || '');
+    const timeB = String(b.time || '');
+    return timeA.localeCompare(timeB);
   };
 
   const formatLocalDate = (date) => {
@@ -316,34 +308,7 @@ export default function App() {
 
   const todayStr = useMemo(() => formatLocalDate(new Date()), []);
 
-  // --- UPDATED SEARCH LOGIC ---
-  const availableYears = useMemo(() => {
-    const years = new Set(events.map(e => String(e.date || '').split('-')[0]).filter(y => y && y.length === 4));
-    return Array.from(years).sort((a, b) => b.localeCompare(a));
-  }, [events]);
-
-  const searchResults = useMemo(() => {
-    // SECURITY GATE: Only run search if there is actually text in the query box
-    if (!isSearchOpen || !searchQuery.trim()) return [];
-
-    return events.filter(event => {
-      const title = String(event.title || '').toLowerCase();
-      const matchesQuery = title.includes(searchQuery.trim().toLowerCase());
-      const matchesArtist = searchArtist === 'all' || event.categoryId === searchArtist;
-      const eventYear = String(event.date || '').split('-')[0];
-      const matchesYear = searchYear === 'all' || eventYear === searchYear;
-      const matchesType = searchType === 'all' || event.remarkId === searchType;
-
-      return matchesQuery && matchesArtist && matchesYear && matchesType;
-    }).sort((a, b) => {
-      const dateA = String(a.date || '');
-      const dateB = String(b.date || '');
-      const dateDiff = dateB.localeCompare(dateA); 
-      if (dateDiff !== 0) return dateDiff;
-      return String(b.time || '').localeCompare(String(a.time || ''));
-    });
-  }, [events, isSearchOpen, searchQuery, searchArtist, searchYear, searchType]);
-
+  // ALWAYS VISIBLE TODAY EVENTS
   const todaysEvents = useMemo(() => {
     return events
       .filter(e => {
@@ -383,6 +348,7 @@ export default function App() {
       });
   }, [events, filters, remarkFilters, currentMonth]);
 
+  // SMART SWIPE LOGIC: Get all events happening on the exact same day as the currently viewed event
   const sameDayEvents = useMemo(() => {
     if (!viewingEvent) return [];
     return events
@@ -394,6 +360,7 @@ export default function App() {
       .sort(sortEventsByTime);
   }, [viewingEvent, events, filters, remarkFilters]);
 
+  // SAFE TOUCH & MOUSE HANDLERS
   const handleDragStart = (clientX) => {
     setDragStart(clientX);
     setDragEnd(null);
@@ -411,6 +378,7 @@ export default function App() {
       setDragEnd(null);
       return;
     }
+
     const distance = dragStart - dragEnd;
     const isLeftSwipe = distance > MIN_SWIPE_DISTANCE;
     const isRightSwipe = distance < -MIN_SWIPE_DISTANCE;
@@ -424,10 +392,12 @@ export default function App() {
         setViewingEvent(sameDayEvents[currentIndex - 1]);
       }
     }
+    
     setDragStart(null);
     setDragEnd(null);
   };
 
+  // Grouping logic with Active Archive
   const { upcomingGrouped, pastGrouped, isCurrentMonth, pastCount, upcomingCount } = useMemo(() => {
     const today = new Date();
     const tStr = formatLocalDate(today);
@@ -498,18 +468,23 @@ export default function App() {
     setRemarkFilters(prev => ({ ...prev, [remarkId]: !prev[remarkId] }));
   };
 
+  // SMART-STACKING COPY LOGIC: UPDATED AS REQUESTED
   const handleCopyTrending = (event) => {
     if (!event.keywords && !event.hashtags) return;
     
     const parts = [];
     if (event.keywords) parts.push(String(event.keywords).trim());
     if (event.hashtags) {
+      // Split the tags by spaces or commas
       const tags = String(event.hashtags).split(/[\s,]+/).filter(t => t.trim());
+      // Add the # to each tag
       const formattedTags = tags.map(tag => tag.startsWith('#') ? tag : `#${tag}`);
+      
       const lines = [];
       let currentLine = [];
 
       formattedTags.forEach((tag) => {
+        // Rule: If tag is longer than 22 chars (Official event tag), it gets its own line
         if (tag.length > 22) {
           if (currentLine.length > 0) {
             lines.push(currentLine.join(' '));
@@ -518,19 +493,25 @@ export default function App() {
           lines.push(tag);
         } else {
           currentLine.push(tag);
+          // Rule: Group artist/shorter tags in pairs of 2 per line
           if (currentLine.length === 2) {
             lines.push(currentLine.join(' '));
             currentLine = [];
           }
         }
       });
+
+      // Push any remaining tags
       if (currentLine.length > 0) {
         lines.push(currentLine.join(' '));
       }
+
       parts.push(lines.join('\n'));
     }
     
+    // Join the Keyword (top line) and the Hashtag group with standard spacing
     const textToCopy = parts.join('\n');
+    
     const textArea = document.createElement("textarea");
     textArea.value = textToCopy;
     document.body.appendChild(textArea);
@@ -572,9 +553,9 @@ export default function App() {
       hashtags: eventToCopy.hashtags || '',
       notes: eventToCopy.notes || ''
     });
-    setEditingEvent(null);
-    setViewingEvent(null); 
-    setShowEventModal(true);
+    setEditingEvent(null); // Force it to act like a new creation
+    setViewingEvent(null); // Close the viewing modal
+    setShowEventModal(true); // Open the creation modal
   };
 
   const handleDelete = async (id) => {
@@ -610,19 +591,19 @@ export default function App() {
 
   const nextMonth = () => { 
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1)); 
-    setSelectedWeekIdx(null);
+    setSelectedWeekIdx(null); // Reset week view
   };
   
   const prevMonth = () => { 
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1)); 
-    setSelectedWeekIdx(null);
+    setSelectedWeekIdx(null); // Reset week view
   };
   
   const jumpToDate = (monthIdx, year) => {
     setCurrentMonth(new Date(year, monthIdx, 1));
     setShowDatePicker(false);
     setShowPastEvents(false); 
-    setSelectedWeekIdx(null);
+    setSelectedWeekIdx(null); // Reset week view
   };
 
   const calendarDays = useMemo(() => {
@@ -636,6 +617,7 @@ export default function App() {
     return days;
   }, [currentMonth]);
 
+  // Option A: Split calendar days into 7-day week chunks for the filter pills
   const calendarWeeks = useMemo(() => {
     const wks = [];
     for (let i = 0; i < calendarDays.length; i += 7) {
@@ -652,6 +634,7 @@ export default function App() {
 
   const renderEventListGroup = (groupedData) => {
     return groupedData.map(([dateStr, dayEvents]) => {
+      // Safe Date Parsing Replacement
       const eventDate = parseSafeDate(dateStr || formatLocalDate(new Date()));
       const firstEventTheme = getCategory(dayEvents[0].categoryId);
 
@@ -734,6 +717,7 @@ export default function App() {
                           {event.hashtags && (
                             <div className="flex items-start gap-3 text-[14px] min-w-0">
                               <span className="font-black text-gray-400 uppercase tracking-widest text-[9px] bg-gray-50 px-2 py-1 rounded-md border border-gray-100 flex-shrink-0 mt-0.5">Hashtag</span>
+                              {/* 1. APPLIED TO LIST VIEW UI HERE */}
                               <span className="font-bold text-blue-600/80 italic break-words flex-1 min-w-0 whitespace-normal">{formatDisplayHashtags(event.hashtags)}</span>
                             </div>
                           )}
@@ -747,6 +731,7 @@ export default function App() {
                             </div>
                           ) : <div className="flex-1"></div>}
                           
+                          {/* Safe check for isPast replaced with strict string compare */}
                           {(dateStr >= todayStr) && (event.keywords || event.hashtags) && (
                             <button 
                               onClick={() => handleCopyTrending(event)}
@@ -779,6 +764,7 @@ export default function App() {
               <CalendarIcon size={28} strokeWidth={2.5} />
             </div>
             <div className="flex flex-col">
+              {/* ADMIN SECRET LOGIN: Tap Title 5 Times */}
               <h1 
                 onClick={handleSecretClick}
                 className="text-[22px] md:text-[28px] text-gray-900 leading-tight cursor-pointer select-none touch-manipulation"
@@ -798,35 +784,23 @@ export default function App() {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 md:gap-3 flex-wrap justify-end">
-            {loading && <div className="text-xs font-bold text-gray-400 animate-pulse tracking-widest hidden sm:block mr-2">Syncing...</div>}
+          <div className="flex items-center gap-3">
+            {loading && <div className="text-xs font-bold text-gray-400 animate-pulse tracking-widest">Syncing...</div>}
             
-            <button 
-              onClick={() => setIsSearchOpen(!isSearchOpen)} 
-              className={`flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl font-black text-sm uppercase transition-all shadow-sm border ${isSearchOpen ? 'bg-blue-600 text-white border-transparent' : 'bg-white text-gray-600 border-gray-100 hover:bg-gray-50'}`}
-              title="Search Global Archive"
-            >
-              <Search size={18} strokeWidth={2.5} />
-              <span className="hidden md:inline">{isSearchOpen ? 'Close Search' : 'Search'}</span>
+            <button onClick={() => setIsLegendOpen(!isLegendOpen)} className={`flex items-center gap-2 px-6 py-3.5 rounded-2xl font-black text-sm uppercase transition-all shadow-sm border ${isLegendOpen ? 'bg-indigo-600 text-white border-transparent' : 'bg-white text-gray-600 border-gray-100 hover:bg-gray-50'}`}>
+              <Filter size={18} /> {isLegendOpen ? 'Hide Filters' : 'Show Filters'} {isLegendOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
             </button>
 
-            <button 
-              onClick={() => setIsLegendOpen(!isLegendOpen)} 
-              className={`flex items-center justify-center gap-2 px-4 md:px-6 py-3.5 rounded-2xl font-black text-sm uppercase transition-all shadow-sm border ${isLegendOpen ? 'bg-indigo-600 text-white border-transparent' : 'bg-white text-gray-600 border-gray-100 hover:bg-gray-50'}`}
-            >
-              <Filter size={18} strokeWidth={2.5} /> 
-              <span className="hidden md:inline">{isLegendOpen ? 'Hide Filters' : 'Filters'}</span>
-            </button>
-
+            {/* ADMIN LOGOUT BUTTON: Only visible when logged in! */}
             {isAdmin && (
               <button 
                 onClick={() => setIsAdmin(false)} 
-                className="flex items-center justify-center px-4 py-3.5 bg-red-50 text-red-600 rounded-2xl font-black text-sm uppercase transition-all shadow-sm border border-red-100 hover:bg-red-100 hover:border-red-200"
-                title="Log Out Admin"
+                className="px-6 py-3.5 bg-red-50 text-red-600 rounded-2xl font-black text-sm uppercase transition-all shadow-sm border border-red-100 hover:bg-red-100 hover:border-red-200"
               >
-                <LogOut size={18} strokeWidth={2.5} />
+                Log Out
               </button>
             )}
+
           </div>
         </header>
 
@@ -866,486 +840,369 @@ export default function App() {
           </div>
         )}
 
-        {/* --- GLOBAL SEARCH BAR & FILTERS --- */}
-        {isSearchOpen && (
-          <div className="bg-white rounded-[2.5rem] border border-gray-100 p-6 md:p-8 shadow-[0_4px_30px_rgb(0,0,0,0.04)] animate-in fade-in slide-in-from-top-4 duration-300 z-10 relative">
-            <div className="flex gap-3">
-              <div className="relative flex-1">
-                <Search size={22} className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" strokeWidth={3} />
-                <input 
-                  id="search-input"
-                  type="text" 
-                  placeholder="Search event titles (e.g. Pluto, Live, Market)..." 
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => { if(e.key === 'Enter') e.target.blur(); }}
-                  className="w-full bg-gray-50/70 rounded-[1.5rem] py-4 md:py-5 pl-14 pr-12 border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 focus:outline-none font-bold text-gray-900 text-[15px] md:text-[17px] transition-all placeholder:text-gray-400"
-                  autoFocus
-                />
-                {searchQuery && (
-                  <button 
-                    onClick={() => setSearchQuery('')} 
-                    className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 bg-gray-100 hover:bg-gray-200 p-1.5 rounded-full transition-colors"
-                  >
-                    <X size={16} strokeWidth={3} />
-                  </button>
-                )}
-              </div>
-              <button 
-                onClick={() => document.getElementById('search-input')?.focus()}
-                className="hidden sm:flex items-center justify-center bg-[#111827] text-white px-8 rounded-[1.5rem] font-black uppercase tracking-widest hover:bg-gray-800 transition-colors shadow-sm"
-              >
-                Search
-              </button>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-4">
-              <div className="relative">
-                <select 
-                  value={searchArtist} 
-                  onChange={(e) => setSearchArtist(e.target.value)} 
-                  className="w-full bg-gray-50 hover:bg-gray-100 rounded-xl py-3 pl-3 sm:pl-4 pr-8 border border-gray-200 focus:border-blue-500 focus:outline-none font-bold text-gray-600 text-[11px] sm:text-[13px] appearance-none cursor-pointer transition-colors"
-                >
-                  <option value="all">All Artists</option>
-                  {Object.values(CATEGORIES).map(cat => (
-                    <option key={cat.id} value={cat.id}>{getArtistEnglishName(cat.id)}</option>
-                  ))}
-                </select>
-                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" strokeWidth={3} />
-              </div>
-              
-              <div className="relative">
-                <select 
-                  value={searchYear} 
-                  onChange={(e) => setSearchYear(e.target.value)} 
-                  className="w-full bg-gray-50 hover:bg-gray-100 rounded-xl py-3 pl-3 sm:pl-4 pr-8 border border-gray-200 focus:border-blue-500 focus:outline-none font-bold text-gray-600 text-[11px] sm:text-[13px] appearance-none cursor-pointer transition-colors"
-                >
-                  <option value="all">All Years</option>
-                  {availableYears.map(year => <option key={year} value={year}>{year}</option>)}
-                </select>
-                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" strokeWidth={3} />
-              </div>
-              
-              <div className="relative">
-                <select 
-                  value={searchType} 
-                  onChange={(e) => setSearchType(e.target.value)} 
-                  className="w-full bg-gray-50 hover:bg-gray-100 rounded-xl py-3 pl-3 sm:pl-4 pr-8 border border-gray-200 focus:border-blue-500 focus:outline-none font-bold text-gray-600 text-[11px] sm:text-[13px] appearance-none cursor-pointer transition-colors truncate"
-                >
-                  <option value="all">All Event Types</option>
-                  {Object.values(REMARKS).map(remark => {
-                    const engName = remark.label.split(' | ')[1] || remark.label;
-                    return <option key={remark.id} value={remark.id}>{remark.short} {engName}</option>
-                  })}
-                </select>
-                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" strokeWidth={3} />
-              </div>
-            </div>
-          </div>
-        )}
-        {/* --- END SEARCH BAR --- */}
-
-        {/* --- MAIN DISPLAY TOGGLE: Hides normal calendar when searching --- */}
-        {!isSearchOpen ? (
-          <>
-            {/* --- HAPPENING TODAY SECTION --- */}
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-3 px-2">
-                {todaysEvents.length > 0 ? (
-                  <>
-                    <span className="relative flex h-3 w-3 mt-[-2px]">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                    </span>
-                    <h2 className="text-[16px] md:text-lg font-black tracking-widest uppercase text-gray-900">Happening Today</h2>
-                    <span className="text-[10px] font-black text-gray-500 bg-gray-100 border border-gray-200 px-2 py-1 rounded-md uppercase tracking-widest ml-2">{todaysEvents.length} Event{todaysEvents.length !== 1 ? 's' : ''}</span>
-                  </>
-                ) : (
-                  <>
-                    <Coffee size={18} className="text-gray-400" strokeWidth={2.5}/>
-                    <h2 className="text-[15px] md:text-[16px] font-black tracking-widest uppercase text-gray-500">Happening Today</h2>
-                  </>
-                )}
-              </div>
-
-              {todaysEvents.length > 0 ? (
-                <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 px-2 custom-scrollbar">
-                  {todaysEvents.map(event => {
-                    const cat = getCategory(event.categoryId);
-                    const remark = getRemark(event.remarkId);
-                    
-                    return (
-                      <div 
-                        key={event.id} 
-                        onClick={() => setViewingEvent(event)}
-                        className={`flex-shrink-0 ${todaysEvents.length === 1 ? 'w-full' : 'w-[85vw]'} sm:w-[320px] snap-center bg-white rounded-[2rem] p-6 border border-gray-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)] cursor-pointer hover:border-blue-300 hover:shadow-md transition-all flex flex-col gap-4`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className={`inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black border ${cat.bg} ${cat.text} ${cat.border}`}>
-                              {cat.label.split(' | ')[0]}
-                            </div>
-                            {remark && (
-                              <div className={`inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black border ${remark.bg} ${remark.text} ${remark.border}`}>
-                                {remark.short}
-                              </div>
-                            )}
-                          </div>
-                          <span className="text-[11px] font-black text-gray-400 flex items-center gap-1.5 uppercase tracking-widest flex-shrink-0 ml-2">
-                            <Clock size={13} strokeWidth={3}/> {event.isTBA ? 'TBA' : event.time}
-                          </span>
-                        </div>
-                        
-                        <h3 className="text-[17px] font-black text-gray-900 leading-snug line-clamp-2">{event.title}</h3>
-                        
-                        <div className="mt-auto flex flex-col gap-3 pt-4 border-t border-gray-50">
-                          
-                          {event.location && (
-                            <div className="flex items-start gap-2 text-[12px] font-bold text-gray-500">
-                              <MapPin size={15} className="text-gray-400 flex-shrink-0 mt-0.5" strokeWidth={2.5} />
-                              <span className="truncate">{event.location}</span>
-                            </div>
-                          )}
-                          
-                          {event.keywords && (
-                            <div className="flex items-center gap-2 min-w-0">
-                              <Tag size={14} className="text-gray-400 flex-shrink-0" strokeWidth={2.5} />
-                              <span className="text-[11px] font-bold text-blue-600/80 truncate">
-                                {event.keywords}
-                              </span>
-                            </div>
-                          )}
-
-                          {event.hashtags && (
-                            <div className="flex items-center gap-2 min-w-0">
-                              <Hash size={14} className="text-gray-400 flex-shrink-0" strokeWidth={2.5} />
-                              <span className="text-[11px] font-bold text-blue-600/80 truncate">
-                                {formatDisplayHashtags(event.hashtags)}
-                              </span>
-                            </div>
-                          )}
-
-                          {event.notes && (
-                            <div className="flex items-center gap-2 text-[12px] font-bold text-blue-500/90">
-                              <Info size={15} className="flex-shrink-0" strokeWidth={2.5} />
-                              <span className="italic">Click to see notes...</span>
-                            </div>
-                          )}
-                          
-                          {(event.keywords || event.hashtags) && (
-                            <button 
-                              onClick={(e) => { 
-                                e.stopPropagation(); 
-                                handleCopyTrending(event); 
-                              }}
-                              className={`w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${copiedId === event.id ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-gray-50 text-gray-500 hover:bg-gray-100 border border-gray-100'}`}
-                              title="Copy full trending tags"
-                            >
-                              {copiedId === event.id ? <Check size={14} strokeWidth={3} /> : <Copy size={14} strokeWidth={3} />}
-                              {copiedId === event.id ? 'Copied to Clipboard' : 'Copy Trending Tags'}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="px-2">
-                  <div className="bg-white rounded-[2rem] border border-gray-100 p-6 flex items-center gap-4 shadow-sm opacity-70">
-                    <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-400">
-                      <CalendarIcon size={18} strokeWidth={2.5} />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[14px] font-black text-gray-900 tracking-tight">No Official Schedule</span>
-                      <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Take a break and rest! 🤍❤️‍🩹</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-[0_2px_20px_rgb(0,0,0,0.02)] p-6 md:p-8">
-              <div className="flex justify-between items-center mb-6 px-2">
-                <button onClick={prevMonth} className="w-12 h-12 flex items-center justify-center rounded-2xl border border-gray-100 hover:bg-gray-50 transition-colors text-gray-800 shadow-sm"><ChevronLeft size={24} strokeWidth={2.5}/></button>
-                <button 
-                  onClick={() => {
-                    setPickerYear(currentMonth.getFullYear());
-                    setShowDatePicker(true);
-                  }}
-                  className="group flex items-center gap-2 px-4 py-2 rounded-2xl hover:bg-gray-50 transition-all"
-                >
-                  <h2 className="text-2xl md:text-[26px] font-black text-[#111827] tracking-tight uppercase group-hover:text-blue-600">
-                    {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
-                  </h2>
-                  <ChevronDown size={20} className="text-gray-400 group-hover:text-blue-600 group-hover:translate-y-0.5 transition-all" />
-                </button>
-                <button onClick={nextMonth} className="w-12 h-12 flex items-center justify-center rounded-2xl border border-gray-100 hover:bg-gray-50 transition-colors text-gray-800 shadow-sm"><ChevronRight size={24} strokeWidth={2.5}/></button>
-              </div>
-              
-              <div className="border border-gray-100 rounded-2xl overflow-hidden mt-4">
-                <div className="grid grid-cols-7 bg-gray-100 gap-[1px]">
-                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                    <div key={day} className="py-4 bg-white text-center text-[11px] sm:text-[12px] font-bold text-gray-500 uppercase tracking-widest">{day}</div>
-                  ))}
-                  {calendarWeeks.map((week, wIdx) => {
-                    if (selectedWeekIdx !== null && selectedWeekIdx !== wIdx) return null;
-                    
-                    return (
-                      <React.Fragment key={wIdx}>
-                        {week.map((date, dIdx) => {
-                          const i = wIdx * 7 + dIdx;
-                          const dayEvents = getEventsForDay(date);
-                          const isToday = date && date.toDateString() === new Date().toDateString();
-                          const isSelectedWeek = selectedWeekIdx === wIdx;
-
-                          return (
-                            <div 
-                              key={i} 
-                              onClick={() => { if(date && isAdmin) openAddModal(formatLocalDate(date)) }}
-                              className={`min-h-[140px] md:min-h-[160px] lg:min-h-[200px] p-2 transition-colors flex flex-col ${!date ? 'bg-white' : isSelectedWeek ? 'bg-blue-50/30 ring-1 ring-blue-100 ring-inset' : isToday ? 'bg-[#fffbeb]' : 'bg-white'} ${date && isAdmin ? 'cursor-pointer hover:bg-gray-50' : ''}`}
-                            >
-                              {date && (
-                                <div className="flex flex-col h-full">
-                                  <div className="mb-2 flex justify-start">
-                                    <span className={`text-[12px] sm:text-[13px] font-bold flex items-center justify-center px-2 py-0.5 rounded-lg min-w-[28px] ${isSelectedWeek ? 'bg-blue-500 text-white shadow-sm' : isToday ? 'bg-[#60a5fa] text-white shadow-sm' : 'text-gray-400'}`}>
-                                      {date.getDate()}
-                                    </span>
-                                  </div>
-
-                                  <div className="space-y-1.5 flex-1">
-                                    {dayEvents.map(event => {
-                                      const cat = getCategory(event.categoryId);
-                                      const remark = getRemark(event.remarkId);
-                                      return (
-                                        <div key={event.id} onClick={(e) => { e.stopPropagation(); setViewingEvent(event); }} className={`px-1.5 py-1 rounded-md border ${cat.dateBorder} ${cat.bg} ${cat.text} cursor-pointer hover:shadow-sm transition-all flex flex-col w-full overflow-hidden`}>
-                                          <div className="font-bold text-[10px] sm:text-[11px] truncate leading-tight w-full">
-                                            {remark && remark.id !== 'none' && <span className={`font-black mr-1 ${remark.text}`}>{remark.short}</span>}
-                                            {event.title}
-                                          </div>
-                                          <div className="flex justify-between items-center w-full text-[9px] sm:text-[10px] font-semibold opacity-80 mt-[2px]"><span className="flex-shrink-0 whitespace-nowrap">{event.isTBA ? 'TBA' : event.time}</span><span className="truncate ml-2 text-right uppercase tracking-tight">{event.location || ''}</span></div>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </React.Fragment>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 px-2 gap-4">
-                <h2 className="text-[20px] font-black tracking-[0.15em] uppercase text-[#111827]">
-                  Monthly Schedule List
-                </h2>
-                <span className="text-[15px] font-bold text-gray-400 flex-shrink-0">{filteredEvents.length} Events Total</span>
-              </div>
-
-              <div className="flex overflow-x-auto gap-2 pb-4 mb-2 custom-scrollbar px-2">
-                <button 
-                  onClick={() => setSelectedWeekIdx(null)}
-                  className={`flex-shrink-0 px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${selectedWeekIdx === null ? 'bg-gray-900 text-white shadow-sm' : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'}`}
-                >
-                  ALL
-                </button>
-                {calendarWeeks.map((week, idx) => {
-                  const validDays = week.filter(d => d !== null);
-                  if (validDays.length === 0) return null; 
-                  return (
-                    <button 
-                      key={idx}
-                      onClick={() => setSelectedWeekIdx(idx)}
-                      className={`flex-shrink-0 px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${selectedWeekIdx === idx ? 'bg-blue-600 text-white shadow-sm border border-transparent' : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'}`}
-                    >
-                      WK {idx + 1}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {filteredEvents.length === 0 ? (
-                <div className="bg-white rounded-[2.5rem] border border-gray-100 p-16 text-center text-gray-400 shadow-[0_2px_20px_rgb(0,0,0,0.02)]">
-                  <CalendarIcon size={48} className="mx-auto mb-4 opacity-20" /><p className="text-lg font-bold">No events scheduled for this month.</p>
-                </div>
-              ) : selectedWeekIdx !== null ? (
-                <div className="space-y-6 animate-in slide-in-from-top-4 duration-300">
-                  <div className="relative flex items-center bg-blue-50 border border-blue-100 p-5 sm:p-6 rounded-[2rem] shadow-sm">
-                     <button 
-                        onClick={() => setSelectedWeekIdx(null)} 
-                        className="absolute top-4 right-4 sm:top-5 sm:right-5 text-blue-400 hover:text-blue-700 bg-white hover:bg-blue-100 p-1.5 sm:p-2 rounded-full transition-all shadow-sm border border-blue-100 active:scale-95"
-                        title="Close Focus Mode"
-                     >
-                        <X size={16} strokeWidth={3} />
-                     </button>
-                     <div className="flex items-center gap-4 pr-8 sm:pr-12">
-                        <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center font-black text-[16px] shadow-md flex-shrink-0">
-                           WK {selectedWeekIdx + 1}
-                        </div>
-                        <div className="flex flex-col flex-1 min-w-0">
-                           <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-0.5">
-                             Focus Mode : Week View
-                           </span>
-                           <div className="flex items-center gap-3 flex-wrap mt-0.5">
-                             <span className="text-[14px] sm:text-[16px] font-black text-blue-900 tracking-tight">
-                                {(() => {
-                                  const currentWeek = calendarWeeks[selectedWeekIdx] || [];
-                                  const weekDates = currentWeek.filter(d => d);
-                                  if (weekDates.length === 0) return '';
-                                  const start = weekDates[0];
-                                  const end = weekDates[weekDates.length - 1];
-                                  return `${start.getDate()} ${start.toLocaleString('default', { month: 'short' })} - ${end.getDate()} ${end.toLocaleString('default', { month: 'short' })}`;
-                                })()}
-                             </span>
-                             {(() => {
-                                const currentWeek = calendarWeeks[selectedWeekIdx] || [];
-                                const targetDates = currentWeek.filter(d => d).map(formatLocalDate);
-                                const count = filteredEvents.filter(e => targetDates.includes(String(e.date || ''))).length;
-                                return (
-                                  <span className="bg-blue-100 text-blue-600 px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest shadow-sm">
-                                    {count} Event{count !== 1 ? 's' : ''}
-                                  </span>
-                                );
-                             })()}
-                           </div>
-                        </div>
-                     </div>
-                  </div>
-
-                  {(() => {
-                     const currentWeek = calendarWeeks[selectedWeekIdx] || [];
-                     const targetDates = currentWeek.filter(d => d).map(formatLocalDate);
-                     const viewEvents = filteredEvents.filter(e => targetDates.includes(String(e.date || '')));
-                     
-                     if (viewEvents.length === 0) {
-                        return (
-                           <div className="bg-white rounded-[2.5rem] border border-gray-100 p-12 text-center text-gray-400 shadow-sm border-dashed">
-                              <CalendarIcon size={32} className="mx-auto mb-3 opacity-20 text-blue-500" strokeWidth={2.5} />
-                              <p className="text-sm font-black uppercase tracking-[0.15em] text-gray-500">
-                                No events scheduled in this week.
-                              </p>
-                              <p className="text-[11px] font-bold mt-1 text-gray-400 uppercase tracking-widest">Select another week or show full month.</p>
-                           </div>
-                        );
-                     }
-                     
-                     const viewGrouped = {};
-                     viewEvents.forEach(e => {
-                       const eventDateStr = String(e.date || '');
-                       if (!viewGrouped[eventDateStr]) viewGrouped[eventDateStr] = [];
-                       viewGrouped[eventDateStr].push(e);
-                     });
-                     const sortedViewGrouped = Object.entries(viewGrouped).sort((a, b) => String(a[0]).localeCompare(String(b[0])));
-                     
-                     return renderEventListGroup(sortedViewGrouped);
-                  })()}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {isCurrentMonth && (
-                    <div className="px-2 -mb-2">
-                      <span className="font-black uppercase tracking-[0.2em] text-[11px] text-blue-600/60 bg-blue-50/50 px-3 py-1.5 rounded-lg border border-blue-100">
-                        Upcoming Events ({upcomingCount})
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="space-y-6">
-                    {upcomingGrouped.length > 0 ? (
-                      renderEventListGroup(upcomingGrouped)
-                    ) : isCurrentMonth ? (
-                      <div className="bg-white rounded-[2.5rem] border border-gray-100 p-12 text-center text-gray-400 shadow-sm border-dashed">
-                        <CalendarCheck size={32} className="mx-auto mb-3 opacity-20 text-blue-500" strokeWidth={2.5} />
-                        <p className="text-sm font-black uppercase tracking-[0.15em] text-gray-500">No more upcoming events currently scheduled.</p>
-                        <p className="text-[11px] font-bold mt-1 text-gray-400 uppercase tracking-widest">Stay tuned for updates.</p>
-                      </div>
-                    ) : null}
-                  </div>
-
-                  {isCurrentMonth && pastGrouped.length > 0 && (
-                    <div className="space-y-6">
-                      <button 
-                        onClick={() => setShowPastEvents(!showPastEvents)}
-                        className="w-full flex items-center justify-between p-6 bg-white rounded-[2rem] border border-gray-100 shadow-sm group transition-all"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-400">
-                            <Clock size={18} />
-                          </div>
-                          <span className="font-black uppercase tracking-widest text-xs text-gray-400 group-hover:text-gray-900 transition-colors">
-                            Show Past Events of {MONTHS[currentMonth.getMonth()]} ({pastCount})
-                          </span>
-                        </div>
-                        {showPastEvents ? <ChevronUp className="text-gray-400" /> : <ChevronDown className="text-gray-400" />}
-                      </button>
-
-                      {showPastEvents && (
-                        <div className="space-y-6 animate-in slide-in-from-top-4 duration-300">
-                          {renderEventListGroup(pastGrouped)}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </>
-        ) : (
-          /* --- DEDICATED SEARCH RESULTS VIEW --- */
-          <div className="space-y-6 animate-in fade-in duration-300 mt-2">
-            {!searchQuery.trim() ? (
-               <div className="bg-white rounded-[2.5rem] border border-gray-100 p-16 text-center text-gray-400 shadow-[0_2px_20px_rgb(0,0,0,0.02)] border-dashed">
-                  <Search size={40} className="mx-auto mb-4 opacity-20 text-blue-500" strokeWidth={2.5} />
-                  <p className="text-[15px] font-black uppercase tracking-[0.15em] text-gray-500">Start Typing to Search</p>
-                  <p className="text-[12px] font-bold mt-2 text-gray-400 uppercase tracking-widest leading-relaxed">Enter an event title to see results from the global archive.</p>
-               </div>
+        {/* --- HAPPENING TODAY SECTION (HORIZONTAL SWIPE) --- */}
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-3 px-2">
+            {todaysEvents.length > 0 ? (
+              <>
+                <span className="relative flex h-3 w-3 mt-[-2px]">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                </span>
+                <h2 className="text-[16px] md:text-lg font-black tracking-widest uppercase text-gray-900">Happening Today</h2>
+                <span className="text-[10px] font-black text-gray-500 bg-gray-100 border border-gray-200 px-2 py-1 rounded-md uppercase tracking-widest ml-2">{todaysEvents.length} Event{todaysEvents.length !== 1 ? 's' : ''}</span>
+              </>
             ) : (
-               <>
-                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end px-2 gap-3">
-                    <h2 className="text-[18px] md:text-[20px] font-black tracking-[0.1em] uppercase text-[#111827]">
-                       Search Results <span className="text-blue-600 break-words whitespace-normal block sm:inline mt-1 sm:mt-0">"{searchQuery}"</span>
-                    </h2>
-                    <span className="text-[12px] md:text-[14px] font-bold text-gray-400 bg-gray-100 px-3 py-1.5 rounded-lg uppercase tracking-widest flex-shrink-0">
-                       {searchResults.length} Found
-                    </span>
-                 </div>
-                 
-                 {searchResults.length > 0 ? (
-                        <div className="space-y-6">
-                         {renderEventListGroup(
-                          Object.entries(
-                          searchResults.reduce((acc, event) => {
-                                if (!acc[event.date]) acc[event.date] = [];
-                                   acc[event.date].push(event);
-                                 return acc;
-                 }, {})
-                 ).sort((a, b) => String(a[0]).localeCompare(String(b[0])))
-             )}
-       </div>
-) : (
-  <div className="bg-white rounded-[2.5rem] border border-gray-100 p-16 text-center text-gray-400 shadow-[0_2px_20px_rgb(0,0,0,0.02)] border-dashed">
-    <Search size={40} className="mx-auto mb-4 opacity-20 text-blue-500" strokeWidth={2.5} />
-    <p className="text-[15px] font-black uppercase tracking-[0.15em] text-gray-500">No events found</p>
-    <p className="text-[12px] font-bold mt-2 text-gray-400 uppercase tracking-widest leading-relaxed">Try a different title or clear the dropdown filters.</p>
-  </div>
-)}
-                 ) : (
-                    <div className="bg-white rounded-[2.5rem] border border-gray-100 p-16 text-center text-gray-400 shadow-[0_2px_20px_rgb(0,0,0,0.02)] border-dashed">
-                       <Search size={40} className="mx-auto mb-4 opacity-20 text-blue-500" strokeWidth={2.5} />
-                       <p className="text-[15px] font-black uppercase tracking-[0.15em] text-gray-500">No events found</p>
-                       <p className="text-[12px] font-bold mt-2 text-gray-400 uppercase tracking-widest leading-relaxed">Try a different title or clear the dropdown filters.</p>
-                    </div>
-                 )}
-               </>
+              <>
+                <Coffee size={18} className="text-gray-400" strokeWidth={2.5}/>
+                <h2 className="text-[15px] md:text-[16px] font-black tracking-widest uppercase text-gray-500">Happening Today</h2>
+              </>
             )}
           </div>
-        )}
+
+          {todaysEvents.length > 0 ? (
+            <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 px-2 custom-scrollbar">
+              {todaysEvents.map(event => {
+                const cat = getCategory(event.categoryId);
+                const remark = getRemark(event.remarkId);
+                
+                return (
+                  <div 
+                    key={event.id} 
+                    onClick={() => setViewingEvent(event)}
+                    className={`flex-shrink-0 ${todaysEvents.length === 1 ? 'w-full' : 'w-[85vw]'} sm:w-[320px] snap-center bg-white rounded-[2rem] p-6 border border-gray-100 shadow-[0_4px_20px_rgb(0,0,0,0.03)] cursor-pointer hover:border-blue-300 hover:shadow-md transition-all flex flex-col gap-4`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className={`inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black border ${cat.bg} ${cat.text} ${cat.border}`}>
+                          {cat.label.split(' | ')[0]}
+                        </div>
+                        {remark && (
+                          <div className={`inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black border ${remark.bg} ${remark.text} ${remark.border}`}>
+                            {remark.short}
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-[11px] font-black text-gray-400 flex items-center gap-1.5 uppercase tracking-widest flex-shrink-0 ml-2">
+                        <Clock size={13} strokeWidth={3}/> {event.isTBA ? 'TBA' : event.time}
+                      </span>
+                    </div>
+                    
+                    <h3 className="text-[17px] font-black text-gray-900 leading-snug line-clamp-2">{event.title}</h3>
+                    
+                    {/* NEW SECTION: Location, Tags, Notes Prompt, and Copy Button grouped together at bottom with even spacing */}
+                    <div className="mt-auto flex flex-col gap-3 pt-4 border-t border-gray-50">
+                      
+                      {/* 1. Location */}
+                      {event.location && (
+                        <div className="flex items-start gap-2 text-[12px] font-bold text-gray-500">
+                          <MapPin size={15} className="text-gray-400 flex-shrink-0 mt-0.5" strokeWidth={2.5} />
+                          <span className="truncate">{event.location}</span>
+                        </div>
+                      )}
+                      
+                      {/* 2. Keyword */}
+                      {event.keywords && (
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Tag size={14} className="text-gray-400 flex-shrink-0" strokeWidth={2.5} />
+                          <span className="text-[11px] font-bold text-blue-600/80 truncate">
+                            {event.keywords}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* 3. Hashtags */}
+                      {event.hashtags && (
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Hash size={14} className="text-gray-400 flex-shrink-0" strokeWidth={2.5} />
+                          {/* 2. APPLIED TO HAPPENING TODAY CARD HERE */}
+                          <span className="text-[11px] font-bold text-blue-600/80 truncate">
+                            {formatDisplayHashtags(event.hashtags)}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* 4. Notes Prompt */}
+                      {event.notes && (
+                        <div className="flex items-center gap-2 text-[12px] font-bold text-blue-500/90">
+                          <Info size={15} className="flex-shrink-0" strokeWidth={2.5} />
+                          <span className="italic">Click to see notes...</span>
+                        </div>
+                      )}
+                      
+                      {/* 5. Copy Button */}
+                      {(event.keywords || event.hashtags) && (
+                        <button 
+                          onClick={(e) => { 
+                            e.stopPropagation(); // Prevents the card from opening when copying
+                            handleCopyTrending(event); 
+                          }}
+                          className={`w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${copiedId === event.id ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-gray-50 text-gray-500 hover:bg-gray-100 border border-gray-100'}`}
+                          title="Copy full trending tags"
+                        >
+                          {copiedId === event.id ? <Check size={14} strokeWidth={3} /> : <Copy size={14} strokeWidth={3} />}
+                          {copiedId === event.id ? 'Copied to Clipboard' : 'Copy Trending Tags'}
+                        </button>
+                      )}
+                    </div>
+
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="px-2">
+              <div className="bg-white rounded-[2rem] border border-gray-100 p-6 flex items-center gap-4 shadow-sm opacity-70">
+                <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-400">
+                  <CalendarIcon size={18} strokeWidth={2.5} />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[14px] font-black text-gray-900 tracking-tight">No Official Schedule</span>
+                  <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Take a break and rest! 🤍❤️‍🩹</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+        {/* --- END HAPPENING TODAY --- */}
+
+        <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-[0_2px_20px_rgb(0,0,0,0.02)] p-6 md:p-8">
+          <div className="flex justify-between items-center mb-6 px-2">
+            <button onClick={prevMonth} className="w-12 h-12 flex items-center justify-center rounded-2xl border border-gray-100 hover:bg-gray-50 transition-colors text-gray-800 shadow-sm"><ChevronLeft size={24} strokeWidth={2.5}/></button>
+            <button 
+              onClick={() => {
+                setPickerYear(currentMonth.getFullYear());
+                setShowDatePicker(true);
+              }}
+              className="group flex items-center gap-2 px-4 py-2 rounded-2xl hover:bg-gray-50 transition-all"
+            >
+              <h2 className="text-2xl md:text-[26px] font-black text-[#111827] tracking-tight uppercase group-hover:text-blue-600">
+                {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
+              </h2>
+              <ChevronDown size={20} className="text-gray-400 group-hover:text-blue-600 group-hover:translate-y-0.5 transition-all" />
+            </button>
+            <button onClick={nextMonth} className="w-12 h-12 flex items-center justify-center rounded-2xl border border-gray-100 hover:bg-gray-50 transition-colors text-gray-800 shadow-sm"><ChevronRight size={24} strokeWidth={2.5}/></button>
+          </div>
+          
+          <div className="border border-gray-100 rounded-2xl overflow-hidden mt-4">
+            <div className="grid grid-cols-7 bg-gray-100 gap-[1px]">
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                <div key={day} className="py-4 bg-white text-center text-[11px] sm:text-[12px] font-bold text-gray-500 uppercase tracking-widest">{day}</div>
+              ))}
+              {calendarWeeks.map((week, wIdx) => {
+                if (selectedWeekIdx !== null && selectedWeekIdx !== wIdx) return null;
+                
+                return (
+                  <React.Fragment key={wIdx}>
+                    {week.map((date, dIdx) => {
+                      const i = wIdx * 7 + dIdx;
+                      const dayEvents = getEventsForDay(date);
+                      const isToday = date && date.toDateString() === new Date().toDateString();
+                      const isSelectedWeek = selectedWeekIdx === wIdx;
+
+                      // RESTORED: Parent container onClick for Admins to easily add events by tapping the background
+                      return (
+                        <div 
+                          key={i} 
+                          onClick={() => { if(date && isAdmin) openAddModal(formatLocalDate(date)) }}
+                          className={`min-h-[140px] md:min-h-[160px] lg:min-h-[200px] p-2 transition-colors flex flex-col ${!date ? 'bg-white' : isSelectedWeek ? 'bg-blue-50/30 ring-1 ring-blue-100 ring-inset' : isToday ? 'bg-[#fffbeb]' : 'bg-white'} ${date && isAdmin ? 'cursor-pointer hover:bg-gray-50' : ''}`}
+                        >
+                          {date && (
+                            <div className="flex flex-col h-full">
+                              <div className="mb-2 flex justify-start">
+                                <span className={`text-[12px] sm:text-[13px] font-bold flex items-center justify-center px-2 py-0.5 rounded-lg min-w-[28px] ${isSelectedWeek ? 'bg-blue-500 text-white shadow-sm' : isToday ? 'bg-[#60a5fa] text-white shadow-sm' : 'text-gray-400'}`}>
+                                  {date.getDate()}
+                                </span>
+                              </div>
+
+                              <div className="space-y-1.5 flex-1">
+                                {dayEvents.map(event => {
+                                  const cat = getCategory(event.categoryId);
+                                  const remark = getRemark(event.remarkId);
+                                  return (
+                                    <div key={event.id} onClick={(e) => { e.stopPropagation(); setViewingEvent(event); }} className={`px-1.5 py-1 rounded-md border ${cat.dateBorder} ${cat.bg} ${cat.text} cursor-pointer hover:shadow-sm transition-all flex flex-col w-full overflow-hidden`}>
+                                      <div className="font-bold text-[10px] sm:text-[11px] truncate leading-tight w-full">
+                                        {remark && remark.id !== 'none' && <span className={`font-black mr-1 ${remark.text}`}>{remark.short}</span>}
+                                        {event.title}
+                                      </div>
+                                      <div className="flex justify-between items-center w-full text-[9px] sm:text-[10px] font-semibold opacity-80 mt-[2px]"><span className="flex-shrink-0 whitespace-nowrap">{event.isTBA ? 'TBA' : event.time}</span><span className="truncate ml-2 text-right uppercase tracking-tight">{event.location || ''}</span></div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6 px-2 gap-4">
+            <h2 className="text-[20px] font-black tracking-[0.15em] uppercase text-[#111827]">
+              Monthly Schedule List
+            </h2>
+            <span className="text-[15px] font-bold text-gray-400 flex-shrink-0">{filteredEvents.length} Events Total</span>
+          </div>
+
+          {/* --- WEEK FILTER PILLS --- */}
+          <div className="flex overflow-x-auto gap-2 pb-4 mb-2 custom-scrollbar px-2">
+            <button 
+              onClick={() => setSelectedWeekIdx(null)}
+              className={`flex-shrink-0 px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${selectedWeekIdx === null ? 'bg-gray-900 text-white shadow-sm' : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'}`}
+            >
+              ALL
+            </button>
+            {calendarWeeks.map((week, idx) => {
+              const validDays = week.filter(d => d !== null);
+              if (validDays.length === 0) return null; // skip empty weeks at start/end of month
+              return (
+                <button 
+                  key={idx}
+                  onClick={() => setSelectedWeekIdx(idx)}
+                  className={`flex-shrink-0 px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${selectedWeekIdx === idx ? 'bg-blue-600 text-white shadow-sm border border-transparent' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'}`}
+                >
+                  WK {idx + 1}
+                </button>
+              );
+            })}
+          </div>
+
+          {filteredEvents.length === 0 ? (
+            <div className="bg-white rounded-[2.5rem] border border-gray-100 p-16 text-center text-gray-400 shadow-[0_2px_20px_rgb(0,0,0,0.02)]">
+              <CalendarIcon size={48} className="mx-auto mb-4 opacity-20" /><p className="text-lg font-bold">No events scheduled for this month.</p>
+            </div>
+          ) : selectedWeekIdx !== null ? (
+            /* --- FOCUS MODE: SPECIFIC WEEK VIEW --- */
+            <div className="space-y-6 animate-in slide-in-from-top-4 duration-300">
+              <div className="relative flex items-center bg-blue-50 border border-blue-100 p-5 sm:p-6 rounded-[2rem] shadow-sm">
+                 <button 
+                    onClick={() => setSelectedWeekIdx(null)} 
+                    className="absolute top-4 right-4 sm:top-5 sm:right-5 text-blue-400 hover:text-blue-700 bg-white hover:bg-blue-100 p-1.5 sm:p-2 rounded-full transition-all shadow-sm border border-blue-100 active:scale-95"
+                    title="Close Focus Mode"
+                 >
+                    <X size={16} strokeWidth={3} />
+                 </button>
+                 <div className="flex items-center gap-4 pr-8 sm:pr-12">
+                    <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center font-black text-[16px] shadow-md flex-shrink-0">
+                       WK {selectedWeekIdx + 1}
+                    </div>
+                    <div className="flex flex-col flex-1 min-w-0">
+                       <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-0.5">
+                         Focus Mode : Week View
+                       </span>
+                       <div className="flex items-center gap-3 flex-wrap mt-0.5">
+                         <span className="text-[14px] sm:text-[16px] font-black text-blue-900 tracking-tight">
+                            {(() => {
+                              const currentWeek = calendarWeeks[selectedWeekIdx] || [];
+                              const weekDates = currentWeek.filter(d => d);
+                              if (weekDates.length === 0) return '';
+                              const start = weekDates[0];
+                              const end = weekDates[weekDates.length - 1];
+                              return `${start.getDate()} ${start.toLocaleString('default', { month: 'short' })} - ${end.getDate()} ${end.toLocaleString('default', { month: 'short' })}`;
+                            })()}
+                         </span>
+                         {(() => {
+                            const currentWeek = calendarWeeks[selectedWeekIdx] || [];
+                            const targetDates = currentWeek.filter(d => d).map(formatLocalDate);
+                            const count = filteredEvents.filter(e => targetDates.includes(String(e.date || ''))).length;
+                            return (
+                              <span className="bg-blue-100 text-blue-600 px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest shadow-sm">
+                                {count} Event{count !== 1 ? 's' : ''}
+                              </span>
+                            );
+                         })()}
+                       </div>
+                    </div>
+                 </div>
+              </div>
+
+              {(() => {
+                 const currentWeek = calendarWeeks[selectedWeekIdx] || [];
+                 const targetDates = currentWeek.filter(d => d).map(formatLocalDate);
+                 const viewEvents = filteredEvents.filter(e => targetDates.includes(String(e.date || '')));
+                 
+                 if (viewEvents.length === 0) {
+                    return (
+                       <div className="bg-white rounded-[2.5rem] border border-gray-100 p-12 text-center text-gray-400 shadow-sm border-dashed">
+                          <CalendarIcon size={32} className="mx-auto mb-3 opacity-20 text-blue-500" strokeWidth={2.5} />
+                          <p className="text-sm font-black uppercase tracking-[0.15em] text-gray-500">
+                            No events scheduled in this week.
+                          </p>
+                          <p className="text-[11px] font-bold mt-1 text-gray-400 uppercase tracking-widest">Select another week or show full month.</p>
+                       </div>
+                    );
+                 }
+                 
+                 // Group the filtered events by date so we can reuse the render logic cleanly
+                 const viewGrouped = {};
+                 viewEvents.forEach(e => {
+                   const eventDateStr = String(e.date || '');
+                   if (!viewGrouped[eventDateStr]) viewGrouped[eventDateStr] = [];
+                   viewGrouped[eventDateStr].push(e);
+                 });
+                 const sortedViewGrouped = Object.entries(viewGrouped).sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+                 
+                 return renderEventListGroup(sortedViewGrouped);
+              })()}
+            </div>
+          ) : (
+            /* --- DEFAULT MODE: UPCOMING / PAST ARCHIVE --- */
+            <div className="space-y-4">
+              {/* CURRENT MONTH SUB-HEADER */}
+              {isCurrentMonth && (
+                <div className="px-2 -mb-2">
+                  <span className="font-black uppercase tracking-[0.2em] text-[11px] text-blue-600/60 bg-blue-50/50 px-3 py-1.5 rounded-lg border border-blue-100">
+                    Upcoming Events ({upcomingCount})
+                  </span>
+                </div>
+              )}
+
+              <div className="space-y-6">
+                {upcomingGrouped.length > 0 ? (
+                  renderEventListGroup(upcomingGrouped)
+                ) : isCurrentMonth ? (
+                  /* EMPTY STATE FOR NO MORE CURRENT UPCOMING EVENTS */
+                  <div className="bg-white rounded-[2.5rem] border border-gray-100 p-12 text-center text-gray-400 shadow-sm border-dashed">
+                    <CalendarCheck size={32} className="mx-auto mb-3 opacity-20 text-blue-500" strokeWidth={2.5} />
+                    <p className="text-sm font-black uppercase tracking-[0.15em] text-gray-500">No more upcoming events currently scheduled.</p>
+                    <p className="text-[11px] font-bold mt-1 text-gray-400 uppercase tracking-widest">Stay tuned for updates.</p>
+                  </div>
+                ) : null}
+              </div>
+
+              {isCurrentMonth && pastGrouped.length > 0 && (
+                <div className="space-y-6">
+                  <button 
+                    onClick={() => setShowPastEvents(!showPastEvents)}
+                    className="w-full flex items-center justify-between p-6 bg-white rounded-[2rem] border border-gray-100 shadow-sm group transition-all"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-400">
+                        <Clock size={18} />
+                      </div>
+                      <span className="font-black uppercase tracking-widest text-xs text-gray-400 group-hover:text-gray-900 transition-colors">
+                        Show Past Events of {MONTHS[currentMonth.getMonth()]} ({pastCount})
+                      </span>
+                    </div>
+                    {showPastEvents ? <ChevronUp className="text-gray-400" /> : <ChevronDown className="text-gray-400" />}
+                  </button>
+
+                  {showPastEvents && (
+                    <div className="space-y-6 animate-in slide-in-from-top-4 duration-300">
+                      {renderEventListGroup(pastGrouped)}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {showDatePicker && (
@@ -1398,12 +1255,18 @@ export default function App() {
       {viewingEvent && (() => {
         const cat = getCategory(viewingEvent.categoryId);
         const remark = getRemark(viewingEvent.remarkId);
+        
+        // SAFE DATE FIX: Parses the string securely and avoids 'Invalid Date' crashes
         const eventDateStr = String(viewingEvent.date || todayStr);
         const eventDate = parseSafeDate(eventDateStr);
+
+        // Where am I in the list of events for today?
         const currentIndex = sameDayEvents.findIndex(e => e.id === viewingEvent.id);
 
         return (
           <div className="fixed inset-0 bg-[#111827]/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            
+            {/* ADDED SWIPE & MOUSE GESTURE HANDLERS TO MODAL CONTAINER */}
             <div 
               className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-w-[95vw] flex flex-col h-auto max-h-[90vh] overflow-hidden relative animate-in zoom-in-95 font-black"
               onTouchStart={(e) => { if (e.targetTouches?.length > 0) handleDragStart(e.targetTouches[0].clientX); }}
@@ -1414,6 +1277,8 @@ export default function App() {
               onMouseUp={handleDragEnd}
               onMouseLeave={handleDragEnd}
             >
+              
+              {/* SMART SWIPE DOTS NAVIGATION: Only visible if multiple events exist today */}
               {sameDayEvents.length > 1 && (
                 <div className="flex justify-center gap-2 pt-6 pb-2 bg-white z-40">
                   {sameDayEvents.map((evt, idx) => (
@@ -1425,6 +1290,7 @@ export default function App() {
                 </div>
               )}
 
+              {/* Header adjusts padding based on whether dots are present */}
               <div className={`px-8 ${sameDayEvents.length > 1 ? 'pt-2' : 'pt-8'} pb-4 bg-white border-b border-gray-50 flex justify-between items-start flex-nowrap z-30`}>
                 <div className="flex items-start gap-3 pr-4 min-w-0 flex-1">
                   <span className={`w-3.5 h-3.5 mt-2 rounded-full ${cat.dot} flex-shrink-0 shadow-sm`}></span>
@@ -1434,6 +1300,7 @@ export default function App() {
                 </div>
                 
                 <div className="flex items-center gap-2 flex-shrink-0">
+                  {/* LAPTOP/PC ONLY: Explicit Next/Prev Buttons */}
                   {sameDayEvents.length > 1 && (
                     <div className="hidden sm:flex items-center gap-1 bg-gray-50 p-1 rounded-2xl shadow-sm border border-gray-100">
                       <button 
@@ -1502,6 +1369,7 @@ export default function App() {
                           <Hash size={16} className="text-gray-400 mt-1 flex-shrink-0" strokeWidth={3} />
                           <div className="min-w-0 flex-1">
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Hashtags</p>
+                            {/* 3. APPLIED TO EVENT MODAL HERE */}
                             <p className="text-sm font-bold text-blue-600/90 italic leading-tight break-words whitespace-normal">{formatDisplayHashtags(viewingEvent.hashtags)}</p>
                           </div>
                         </div>
@@ -1516,6 +1384,7 @@ export default function App() {
                         </div>
                       )}
 
+                      {/* Safe String Checks for the past event evaluation */}
                       {(String(viewingEvent.date || '') >= todayStr) && (viewingEvent.keywords || viewingEvent.hashtags) && (
                         <div className="pt-4 flex justify-end">
                           <button 
@@ -1531,6 +1400,7 @@ export default function App() {
                   )}
                 </div>
 
+                {/* ADMIN ACTIONS: Now with Duplicate Button */}
                 {isAdmin && (
                   <div className="flex gap-2 pt-6 border-t border-gray-100 mt-6 sticky bottom-0 bg-white">
                     <button onClick={() => { setViewingEvent(null); openEditModal(viewingEvent); }} className="flex-1 bg-blue-50 text-blue-600 font-bold py-3.5 rounded-2xl hover:bg-blue-100 transition-colors flex items-center justify-center gap-2 shadow-sm font-black text-[13px] uppercase tracking-wider">
